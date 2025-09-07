@@ -141,6 +141,30 @@ void PDFPageWidget::renderPage() {
     }
 }
 
+// void PDFPageWidget::paintEvent(QPaintEvent* event) {
+//     QPainter painter(this);
+
+//     // Enable high-quality rendering hints
+//     painter.setRenderHints(QPainter::Antialiasing |
+//                           QPainter::SmoothPixmapTransform |
+//                           QPainter::TextAntialiasing);
+
+//     // Call parent implementation with enhanced rendering
+//     QLabel::paintEvent(event);
+
+//     // Draw search highlights
+//     if (!m_searchResults.isEmpty()) {
+//         drawSearchHighlights(painter);
+//     }
+
+//     // Add subtle shadow effect for better visual appearance
+//     if (!renderedPixmap.isNull()) {
+//         QRect pixmapRect = rect();
+//         painter.setPen(QPen(QColor(0, 0, 0, 30), 1));
+//         painter.drawRect(pixmapRect.adjusted(0, 0, -1, -1));
+//     }
+// }
+
 void PDFPageWidget::paintEvent(QPaintEvent* event) {
     QPainter painter(this);
 
@@ -149,20 +173,20 @@ void PDFPageWidget::paintEvent(QPaintEvent* event) {
                           QPainter::SmoothPixmapTransform |
                           QPainter::TextAntialiasing);
 
-    // Call parent implementation with enhanced rendering
-    QLabel::paintEvent(event);
+    // 先绘制边框
+    if (!renderedPixmap.isNull()) {
+        QRect pixmapRect = rect();
+        painter.setPen(QPen(QColor(0, 0, 0, 30), 1));
+        painter.drawRect(pixmapRect.adjusted(0, 0, -1, -1));
+    }
 
     // Draw search highlights
     if (!m_searchResults.isEmpty()) {
         drawSearchHighlights(painter);
     }
 
-    // Add subtle shadow effect for better visual appearance
-    if (!renderedPixmap.isNull()) {
-        QRect pixmapRect = rect();
-        painter.setPen(QPen(QColor(0, 0, 0, 30), 1));
-        painter.drawRect(pixmapRect.adjusted(0, 0, -1, -1));
-    }
+    // 然后调用父类实现
+    QLabel::paintEvent(event);
 }
 
 bool PDFPageWidget::event(QEvent* event) {

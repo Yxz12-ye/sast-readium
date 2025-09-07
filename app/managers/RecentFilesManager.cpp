@@ -70,7 +70,7 @@ void RecentFilesManager::addRecentFile(const QString& filePath) {
 }
 
 QList<RecentFileInfo> RecentFilesManager::getRecentFiles() const {
-    QMutexLocker locker(&m_mutex);
+    // QMutexLocker locker(&m_mutex);
     return m_recentFiles;
 }
 

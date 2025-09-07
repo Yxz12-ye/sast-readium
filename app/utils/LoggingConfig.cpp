@@ -426,6 +426,6 @@ LoggingConfig& LoggingConfigBuilder::build() const
 
 std::unique_ptr<LoggingConfig> LoggingConfigBuilder::buildUnique() const
 {
-    // return std::make_unique<LoggingConfig>(*m_config);
-    return m_config->clone();
+    return std::make_unique<LoggingConfig>(m_config.get());
+    // return m_config->clone(m_config.get());
 }
