@@ -90,6 +90,8 @@ public:
     explicit LoggingConfig(QObject* parent = nullptr);
     ~LoggingConfig() = default;
 
+    virtual std::unique_ptr<LoggingConfig> clone(QObject* parent = nullptr) const;
+
     // Configuration loading and saving
     bool loadFromSettings(QSettings& settings);
     bool saveToSettings(QSettings& settings) const;
@@ -273,7 +275,7 @@ public:
     
     // Build the configuration
     LoggingConfig& build() const;
-    // std::unique_ptr<LoggingConfig> buildUnique() const;
+    std::unique_ptr<LoggingConfig> buildUnique() const;
 
 private:
     std::unique_ptr<LoggingConfig> m_config;

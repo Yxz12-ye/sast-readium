@@ -243,7 +243,8 @@ private:
     std::vector<spdlog::sink_ptr> m_sinks;
     LoggerConfig m_config;
     QTextEdit* m_qtWidget = nullptr;
-    mutable QMutex m_mutex;
+    // mutable QMutex m_mutex;
+    mutable QRecursiveMutex m_mutex;
     bool m_initialized = false;
 };
 

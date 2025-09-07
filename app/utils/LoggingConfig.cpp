@@ -31,6 +31,10 @@ LoggingConfig::LoggingConfig(QObject* parent)
     connectSignals();
 }
 
+std::unique_ptr<LoggingConfig> LoggingConfig::clone(QObject* parent) const {
+    return std::make_unique<LoggingConfig>(parent);
+}
+
 void LoggingConfig::initializeDefaults()
 {
     m_globalConfig = s_defaultGlobalConfig;
@@ -420,7 +424,8 @@ LoggingConfig& LoggingConfigBuilder::build() const
     return *m_config;
 }
 
-// std::unique_ptr<LoggingConfig> LoggingConfigBuilder::buildUnique() const
-// {
-//     return std::make_unique<LoggingConfig>(*m_config);
-// }
+std::unique_ptr<LoggingConfig> LoggingConfigBuilder::buildUnique() const
+{
+    // return std::make_unique<LoggingConfig>(*m_config);
+    return m_config->clone();
+}

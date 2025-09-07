@@ -47,6 +47,7 @@ void Logger::initialize(const LoggerConfig& config)
         }
         
         createLogger();
+        
         setLogLevel(m_config.level);
         setPattern(m_config.pattern);
         

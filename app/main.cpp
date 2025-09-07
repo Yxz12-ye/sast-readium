@@ -9,15 +9,16 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
 
     // Initialize logging system early
-    // LoggingConfigBuilder configBuilder;
+    LoggingConfigBuilder configBuilder;
     // configBuilder.useDevelopmentPreset()
     //              .setGlobalLevel(Logger::LogLevel::Debug)
     //              .addConsoleSink("console", Logger::LogLevel::Debug)
     //              .addCategory("main", Logger::LogLevel::Debug)
     //              .addCategory("ui", Logger::LogLevel::Info);
+    // addCategory没有定义
 
-    // auto loggingConfig = configBuilder.buildUnique();
-    // LoggingManager::instance().initialize(LoggingManager::LoggingConfiguration{});
+    auto loggingConfig = configBuilder.buildUnique();
+    LoggingManager::instance().initialize(LoggingManager::LoggingConfiguration{});
 
     LOG_INFO("Starting SAST Readium application");
     LOG_INFO("Application name: {}", PROJECT_NAME);
