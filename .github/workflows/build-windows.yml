@@ -52,19 +52,6 @@ jobs:
             mingw-w64-clang-x86_64-spdlog
             git
 
-      - name: Verify dependencies
-        run: |
-          echo "MSYS2 Environment: $MSYSTEM"
-          echo "Architecture: clang-x86_64"
-          echo "Build Type: Release"
-
-          # Check installed packages
-          pacman -Q | grep -E "(cmake|ninja|gcc|qt6|poppler)" || true
-
-          # Verify Qt6 and Poppler
-          pkg-config --exists Qt6Core && echo "✓ Qt6Core found" || echo "✗ Qt6Core not found"
-          pkg-config --exists poppler-qt6 && echo "✓ poppler-qt6 found" || echo "✗ poppler-qt6 not found"
-
       - name: Configure CMake
         run: |
           cmake --preset=Release-MSYS2
@@ -88,10 +75,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-msys2-clang64-Release
-          path: |
-            build/Release-MSYS2/app/app.exe
-            build/Release-MSYS2/app/*.dll
-            build/Release-MSYS2/app/styles/
+          path: build/Release-MSYS2/app/**
+          if-no-files-found: error
+          compression-level: 9
           retention-days: 7
 
   # Build summary and status
