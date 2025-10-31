@@ -30,33 +30,14 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 1
 
-      # MSYS2 package caching (cover common locations)
-      - name: Cache MSYS2 packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            C:\msys64\var\cache\pacman\pkg
-            C:\msys64\mingw32
-            C:\msys64\mingw64
-            C:\msys64\ucrt64
-            C:\msys64\clang64
-            C:\msys64\clangarm64
-            D:\a\_temp\msys64\var\cache\pacman\pkg
-            D:\a\_temp\msys64\mingw32
-            D:\a\_temp\msys64\mingw64
-            D:\a\_temp\msys64\ucrt64
-            D:\a\_temp\msys64\clang64
-            D:\a\_temp\msys64\clangarm64
-          key: ${{ runner.os }}-msys2-clang64-${{ env.CACHE_VERSION }}-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-msys2-clang64-${{ env.CACHE_VERSION }}-
-            ${{ runner.os }}-msys2-clang64-
+      # Use msys2/setup-msys2 built-in caching (default true)
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
           msystem: clang64
           update: true
+          cache: true
           install: >-
             mingw-w64-clang-x86_64-cmake
             mingw-w64-clang-x86_64-ninja
