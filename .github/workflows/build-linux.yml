@@ -61,10 +61,9 @@ jobs:
         with:
           name: ${{ env.APP_NAME }}-linux-x64-system
           path: |
-            build/Release/app/app*
-            build/Release/app/*.so*
-            build/Release/app/styles/
+            build/Release/app/**
           retention-days: 7
+          compression-level: 9
 
   # Build summary and performance metrics
   build-summary:
