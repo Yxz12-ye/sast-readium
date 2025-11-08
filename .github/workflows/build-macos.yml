@@ -33,7 +33,7 @@ jobs:
       - name: Install system dependencies
         run: |
           echo "Installing Homebrew packages..."
-          brew install cmake ninja qt@6 pkg-config
+          brew install cmake ninja qt@6 pkg-config spdlog
 
           # Install poppler dependencies
           echo "Installing poppler dependencies..."
