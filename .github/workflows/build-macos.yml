@@ -17,6 +17,7 @@ env:
   # Homebrew optimizations
   HOMEBREW_NO_AUTO_UPDATE: 1
   HOMEBREW_NO_INSTALL_CLEANUP: 1
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
 
 jobs:
   build:
@@ -101,14 +102,137 @@ jobs:
         run: |
           cmake --build --preset=Release-Unix --parallel 4
 
+      - name: Deploy runtime
+        run: |
+          echo "Creating macOS .app bundle..."
+          
+          # Set variables
+          APP_NAME="sast-readium"
+          APP_DISPLAY_NAME="Sast-Readium"
+          BUILD_DIR="build/Release"
+          PUBLISH_DIR="build/Publish"
+          APP_BUNDLE="${PUBLISH_DIR}/${APP_DISPLAY_NAME}.app"
+          
+          # Create .app bundle structure
+          mkdir -p "${PUBLISH_DIR}"
+          mkdir -p "${APP_BUNDLE}/Contents/MacOS"
+          mkdir -p "${APP_BUNDLE}/Contents/Resources"
+          mkdir -p "${APP_BUNDLE}/Contents/Frameworks"
+          
+          # Copy executable
+          echo "Copying executable..."
+          cp "${BUILD_DIR}/app/app" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+          chmod +x "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+          
+          # Copy resources
+          echo "Copying resources..."
+          [ -d "${BUILD_DIR}/app/styles" ] && cp -r "${BUILD_DIR}/app/styles" "${APP_BUNDLE}/Contents/Resources/"
+          [ -d "assets" ] && cp -r assets "${APP_BUNDLE}/Contents/Resources/"
+          
+          # Create app icon from PNG
+          if [ -f "assets/images/1024x1024.png" ]; then
+            echo "Creating app icon..."
+            mkdir -p icon.iconset
+            sips -z 16 16     assets/images/1024x1024.png --out icon.iconset/icon_16x16.png
+            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_16x16@2x.png
+            sips -z 32 32     assets/images/1024x1024.png --out icon.iconset/icon_32x32.png
+            sips -z 64 64     assets/images/1024x1024.png --out icon.iconset/icon_32x32@2x.png
+            sips -z 128 128   assets/images/1024x1024.png --out icon.iconset/icon_128x128.png
+            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_128x128@2x.png
+            sips -z 256 256   assets/images/256x256.png --out icon.iconset/icon_256x256.png
+            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_256x256@2x.png
+            sips -z 512 512   assets/images/1024x1024.png --out icon.iconset/icon_512x512.png
+            sips -z 1024 1024 assets/images/1024x1024.png --out icon.iconset/icon_512x512@2x.png
+            iconutil -c icns icon.iconset -o "${APP_BUNDLE}/Contents/Resources/app.icns"
+            rm -rf icon.iconset
+          fi
+          
+          # Create Info.plist
+          echo "Creating Info.plist..."
+          cat > "${APP_BUNDLE}/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>sast-readium</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.sast.readium</string>
+              <key>CFBundleName</key>
+              <string>Sast-Readium</string>
+              <key>CFBundleDisplayName</key>
+              <string>SAST Readium</string>
+              <key>CFBundleVersion</key>
+              <string>0.1.0</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.1.0</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleIconFile</key>
+              <string>app.icns</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>11.0</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>NSPrincipalClass</key>
+              <string>NSApplication</string>
+              <key>CFBundleDocumentTypes</key>
+              <array>
+                  <dict>
+                      <key>CFBundleTypeName</key>
+                      <string>PDF Document</string>
+                      <key>CFBundleTypeRole</key>
+                      <string>Viewer</string>
+                      <key>CFBundleTypeExtensions</key>
+                      <array>
+                          <string>pdf</string>
+                      </array>
+                      <key>LSHandlerRank</key>
+                      <string>Alternate</string>
+                  </dict>
+              </array>
+          </dict>
+          </plist>
+          EOF
+          
+          # Deploy Qt dependencies
+          echo "Deploying Qt dependencies..."
+          export Qt6_DIR=$(brew --prefix qt@6)
+          "${Qt6_DIR}/bin/macdeployqt" "${APP_BUNDLE}" -verbose=2
+          
+          # Copy poppler and other libraries
+          echo "Copying additional libraries..."
+          for lib in /usr/local/lib/libpoppler*.dylib; do
+            if [ -f "$lib" ]; then
+              lib_name=$(basename "$lib")
+              echo "Copying $lib_name..."
+              cp "$lib" "${APP_BUNDLE}/Contents/Frameworks/"
+              chmod +w "${APP_BUNDLE}/Contents/Frameworks/${lib_name}"
+              install_name_tool -id "@rpath/${lib_name}" "${APP_BUNDLE}/Contents/Frameworks/${lib_name}" 2>/dev/null || true
+            fi
+          done
+          
+          # Fix library paths in executable
+          echo "Fixing library paths..."
+          for dylib in "${APP_BUNDLE}/Contents/Frameworks"/*.dylib; do
+            if [ -f "$dylib" ]; then
+              dylib_name=$(basename "$dylib")
+              install_name_tool -change "/usr/local/lib/${dylib_name}" "@rpath/${dylib_name}" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
+            fi
+          done
+          
+          # Add rpath
+          install_name_tool -add_rpath "@executable_path/../Frameworks" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
+          
+          echo "App bundle created at: ${APP_BUNDLE}"
+          ls -lah "${APP_BUNDLE}/Contents/MacOS/"
+
       - name: Upload native build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-macos-arm64
           path: |
-            build/Release/app/app*
-            build/Release/app/*.dylib*
-            build/Release/app/styles/
+            build/Publish/Sast-Readium.app
           retention-days: 7
 
   # # Build summary and performance metrics
