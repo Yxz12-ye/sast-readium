@@ -247,69 +247,66 @@ jobs:
             build/Publish/
           retention-days: 7
 
-  # # Build summary and performance metrics
-  # build-summary:
-  #   name: macOS Build Summary
-  #   runs-on: macos-latest
-  #   needs: [build-native, build-universal, build-vcpkg]
-  #   if: always()
+  # Build summary and status
+  build-summary:
+    name: macOS Build Summary
+    runs-on: macos-latest
+    needs: [build]
+    if: always()
 
-  #   steps:
-  #     - name: Download all artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         path: artifacts
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-  #     - name: Generate build summary
-  #       run: |
-  #         echo "# macOS Build Summary" >> $GITHUB_STEP_SUMMARY
-  #         echo "" >> $GITHUB_STEP_SUMMARY
-  #         echo "## Build Strategy" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Primary**: System packages with Homebrew + custom poppler-qt6 build + ccache" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Universal**: Intel + Apple Silicon binaries" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Fallback**: vcpkg when system packages fail" >> $GITHUB_STEP_SUMMARY
-  #         echo "" >> $GITHUB_STEP_SUMMARY
+      - name: Generate build summary
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BUILD_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          buildResult="${BUILD_RESULT}"
+          shortSha="${GITHUB_SHA:0:7}"
 
-  #         echo "## Artifacts Generated" >> $GITHUB_STEP_SUMMARY
-  #         echo "" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # macOS Build Summary
 
-  #         for dir in artifacts/*/; do
-  #           if [ -d "$dir" ]; then
-  #             artifact_name=$(basename "$dir")
-  #             file_count=$(find "$dir" -type f | wc -l)
-  #             total_size=$(du -sh "$dir" | cut -f1)
-  #             echo "- **$artifact_name**: $file_count files, $total_size" >> $GITHUB_STEP_SUMMARY
-  #           fi
-  #         done
+          EOF
 
-  #         echo "" >> $GITHUB_STEP_SUMMARY
-  #         echo "## Platform Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "## Result" >> $GITHUB_STEP_SUMMARY
+          echo "- Build job: ${buildResult}" >> $GITHUB_STEP_SUMMARY
+          echo "- Ref: ${GITHUB_REF_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${shortSha}" >> $GITHUB_STEP_SUMMARY
+          echo "- Run: ${GITHUB_RUN_NUMBER}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-  #         if [ -d "artifacts/${{ env.APP_NAME }}-macos-x64" ]; then
-  #           echo "✅ macOS x64 (Intel)" >> $GITHUB_STEP_SUMMARY
-  #         fi
+          echo "## Build Strategy" >> $GITHUB_STEP_SUMMARY
+          echo "- Homebrew with system packages (preferred)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-  #         if [ -d "artifacts/${{ env.APP_NAME }}-macos-arm64" ]; then
-  #           echo "✅ macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
-  #         fi
+          echo "## Artifacts Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-  #         if [ -d "artifacts/${{ env.APP_NAME }}-macos-universal" ]; then
-  #           echo "✅ macOS Universal (Intel + Apple Silicon)" >> $GITHUB_STEP_SUMMARY
-  #         else
-  #           echo "⏭️ macOS Universal (On-demand)" >> $GITHUB_STEP_SUMMARY
-  #         fi
+          if [ -d "artifacts" ]; then
+            for dir in artifacts/*/; do
+              if [ -d "$dir" ]; then
+                artifact_name=$(basename "$dir")
+                file_count=$(find "$dir" -type f | wc -l | xargs)
+                total_size=$(du -sh "$dir" | cut -f1)
+                echo "- **${artifact_name}**: ${file_count} files, ${total_size}" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          else
+            echo "(No artifacts directory found)" >> $GITHUB_STEP_SUMMARY
+          fi
 
-  #         if [ -d "artifacts/${{ env.APP_NAME }}-macos-x64-vcpkg" ]; then
-  #           echo "✅ macOS x64 (vcpkg fallback)" >> $GITHUB_STEP_SUMMARY
-  #         else
-  #           echo "⏭️ macOS x64 (vcpkg - not needed)" >> $GITHUB_STEP_SUMMARY
-  #         fi
-
-  #         echo "" >> $GITHUB_STEP_SUMMARY
-  #         echo "## Performance Optimizations" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **ccache**: Compilation caching (500MB-750MB limit)" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Homebrew**: System package management" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Custom poppler-qt6**: Built from source with Qt6 support and caching" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Parallel builds**: Optimized job count (75% of cores)" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Package caching**: Homebrew + poppler cache persistence" >> $GITHUB_STEP_SUMMARY
-  #         echo "- **Universal binaries**: Single artifact for both architectures" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Performance Optimizations" >> $GITHUB_STEP_SUMMARY
+          echo "- System packages prioritized (Homebrew)" >> $GITHUB_STEP_SUMMARY
+          echo "- Caching of Homebrew package repositories" >> $GITHUB_STEP_SUMMARY
+          echo "- Parallel builds with optimal job count" >> $GITHUB_STEP_SUMMARY
+          echo "- Shallow git clones for faster checkout" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Run" >> $GITHUB_STEP_SUMMARY
+          echo "- ${BUILD_JOB_URL}" >> $GITHUB_STEP_SUMMARY
