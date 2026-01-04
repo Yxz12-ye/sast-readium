@@ -222,16 +222,16 @@ QString DocumentModel::getDocumentFilePath(int index) const {
     return QString();
 }
 
-Poppler::Document* DocumentModel::getCurrentDocument() const {
+std::shared_ptr<Poppler::Document> DocumentModel::getCurrentDocument() const {
     if (isValidIndex(currentDocumentIndex)) {
-        return documents[currentDocumentIndex]->document.get();
+        return documents[currentDocumentIndex]->document;
     }
     return nullptr;
 }
 
-Poppler::Document* DocumentModel::getDocument(int index) const {
+std::shared_ptr<Poppler::Document> DocumentModel::getDocument(int index) const {
     if (isValidIndex(index)) {
-        return documents[index]->document.get();
+        return documents[index]->document;
     }
     return nullptr;
 }

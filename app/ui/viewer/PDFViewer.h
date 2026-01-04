@@ -135,7 +135,7 @@ public:
     ~PDFViewer() = default;
 
     // 文档操作
-    void setDocument(Poppler::Document* document);
+    void setDocument(std::shared_ptr<Poppler::Document> document);
     void clearDocument();
 
     // 页面导航
@@ -305,7 +305,7 @@ private:
     SearchWidget* searchWidget;
 
     // 文档数据
-    Poppler::Document* document;
+    std::shared_ptr<Poppler::Document> document;
     int currentPageNumber;
     double currentZoomFactor;
     PDFViewMode currentViewMode;

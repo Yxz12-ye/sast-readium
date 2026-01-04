@@ -4,7 +4,8 @@
 PDFOutlineModel::PDFOutlineModel(QObject* parent)
     : QObject(parent), totalItemCount(0) {}
 
-bool PDFOutlineModel::parseOutline(Poppler::Document* document) {
+bool PDFOutlineModel::parseOutline(
+    std::shared_ptr<Poppler::Document> document) {
     clear();
 
     if (!document) {

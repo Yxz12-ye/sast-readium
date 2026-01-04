@@ -24,7 +24,8 @@ public:
     ~DocumentMetadataDialog() = default;
 
     // 设置要显示元数据的PDF文档
-    void setDocument(Poppler::Document* document, const QString& filePath);
+    void setDocument(std::shared_ptr<Poppler::Document> document,
+                     const QString& filePath);
 
 private slots:
     void onThemeChanged();
@@ -34,10 +35,9 @@ private:
     void setupConnections();
     void applyCurrentTheme();
     void clearMetadata();
-    void populateBasicInfo(const QString& filePath,
-                           Poppler::Document* document);
-    void populateDocumentProperties(Poppler::Document* document);
-    void populateSecurityInfo(Poppler::Document* document);
+    void populateBasicInfo(const QString& filePath);
+    void populateDocumentProperties();
+    void populateSecurityInfo();
 
     QString formatDateTime(const QString& dateTimeStr);
     QString formatFileSize(qint64 bytes);
@@ -82,5 +82,5 @@ private:
 
     // 当前文档信息
     QString m_currentFilePath;
-    Poppler::Document* m_currentDocument;
+    std::shared_ptr<Poppler::Document> m_currentDocument;
 };

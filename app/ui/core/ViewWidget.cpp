@@ -228,7 +228,7 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
         return;
 
     QString filePath = documentModel->getDocumentFilePath(index);
-    Poppler::Document* document = documentModel->getDocument(index);
+    auto document = documentModel->getDocument(index);
 
     // 创建新的PDF查看器
     PDFViewer* viewer = createPDFViewer();

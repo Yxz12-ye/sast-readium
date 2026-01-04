@@ -375,13 +375,9 @@ void MainWindow::onCurrentDocumentChangedForOutline(int index) {
 
     // 设置缩略图文档
     if (documentModel && index >= 0) {
-        Poppler::Document* document = documentModel->getDocument(index);
-        if (document) {
-            // 创建shared_ptr包装
-            std::shared_ptr<Poppler::Document> sharedDoc(
-                document, [](Poppler::Document*) {
-                    // 不删除，因为DocumentModel管理生命周期
-                });
+        std::shared_ptr<Poppler::Document> sharedDoc =
+            documentModel->getDocument(index);
+        if (sharedDoc) {
             sideBar->setDocument(sharedDoc);
         }
     }

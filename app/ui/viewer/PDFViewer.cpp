@@ -742,7 +742,6 @@ void PDFViewer::setupViewModes() {
     }
     continuousScrollArea->setWidget(continuousWidget);
     continuousScrollArea->setWidgetResizable(true);
-    // continuousScrollArea->setAlignment(Qt::AlignCenter);
 
     // 应用样式
     if (m_enableStyling) {
@@ -989,7 +988,7 @@ void PDFViewer::setupShortcuts() {
     });
 }
 
-void PDFViewer::setDocument(Poppler::Document* doc) {
+void PDFViewer::setDocument(std::shared_ptr<Poppler::Document> doc) {
     try {
         // 清理旧文档
         if (document) {

@@ -26,7 +26,7 @@ public:
     ~SearchWidget() = default;
 
     // Search operations
-    void setDocument(Poppler::Document* document);
+    void setDocument(std::shared_ptr<Poppler::Document> document);
     void focusSearchInput();
     void clearSearch();
     void showSearchOptions(bool show);
@@ -110,7 +110,7 @@ private:
 
     // Data and state
     SearchModel* m_searchModel;
-    Poppler::Document* m_document;
+    std::shared_ptr<Poppler::Document> m_document;
     QTimer* m_searchTimer;  // For debounced search
     bool m_optionsVisible;
 
