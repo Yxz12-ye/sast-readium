@@ -117,8 +117,6 @@ QString StyleManager::createButtonStyle() const {
             color: %4;
             font-weight: 500;
             padding: 6px 12px;
-            min-width: %5px;
-            min-height: %6px;
         }
         QPushButton:hover {
             background-color: %7;

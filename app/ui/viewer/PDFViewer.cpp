@@ -162,8 +162,8 @@ void PDFPageWidget::paintEvent(QPaintEvent* event) {
 
     // Enable high-quality rendering hints
     painter.setRenderHints(QPainter::Antialiasing |
-                          QPainter::SmoothPixmapTransform |
-                          QPainter::TextAntialiasing);
+                           QPainter::SmoothPixmapTransform |
+                           QPainter::TextAntialiasing);
 
     // 先绘制边框
     if (!renderedPixmap.isNull()) {
@@ -614,12 +614,6 @@ void PDFViewer::setupUI() {
     fitWidthBtn->setStyleSheet(buttonStyle);
     fitHeightBtn->setStyleSheet(buttonStyle);
     fitPageBtn->setStyleSheet(buttonStyle);
-
-    zoomOutBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
-    zoomInBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
-    fitWidthBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
-    fitHeightBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
-    fitPageBtn->setFixedSize(STYLE.buttonHeight(), STYLE.buttonHeight());
 
     zoomSlider->setRange(10, 500);  // 10% to 500%
     zoomSlider->setValue(100);
@@ -1430,7 +1424,8 @@ void PDFViewer::createContinuousPages() {
         if (page) {
             // 阻止信号发出，避免在初始化时触发缩放循环
             pageWidget->blockSignals(true);
-            pageWidget->setPage(page.release(), currentZoomFactor, currentRotation);
+            pageWidget->setPage(page.release(), currentZoomFactor,
+                                currentRotation);
             pageWidget->blockSignals(false);
         }
 
@@ -1880,8 +1875,9 @@ void PDFViewer::setRotation(int degrees) {
                         std::unique_ptr<Poppler::Page> page(
                             document->page(currentPageNumber));
                         if (page) {
-                            singlePageWidget->setPage(
-                                page.release(), currentZoomFactor, currentRotation);
+                            singlePageWidget->setPage(page.release(),
+                                                      currentZoomFactor,
+                                                      currentRotation);
                         } else {
                             throw std::runtime_error(
                                 "Failed to get page for rotation");
