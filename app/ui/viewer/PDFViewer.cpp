@@ -1565,90 +1565,107 @@ void PDFViewer::createContinuousPages() {
 }
 
 void PDFViewer::updateVisiblePages() {
-    if (!document || currentViewMode != PDFViewMode::ContinuousScroll) {
+    if (!document || currentViewMode != PDFViewMode::ContinuousScroll)
         return;
-    }
 
     QScrollBar* scrollBar = continuousScrollArea->verticalScrollBar();
-    if (!scrollBar)
-        return;
+    int viewportTop = scrollBar->value();
+    int viewportBottom =
+        viewportTop + continuousScrollArea->viewport()->height();
 
-    int viewportHeight = continuousScrollArea->viewport()->height();
-    int scrollValue = scrollBar->value();
+    int newVisibleStart = -1;
+    int newVisibleEnd = -1;
 
-    // 估算可见页面范围
-    int totalPages = document->numPages();
-    if (totalPages == 0)
-        return;
+    renderedPages.clear();
 
-    // 简化计算：假设所有页面高度相似
-    int estimatedPageHeight = viewportHeight;  // 粗略估算
-    if (continuousLayout->count() > 1) {
-        QLayoutItem* firstItem = continuousLayout->itemAt(0);
-        if (firstItem && firstItem->widget()) {
-            estimatedPageHeight = firstItem->widget()->height();
+    // 遍历所有 Widget 确定哪些在视口内
+    for (int i = 0; i < continuousLayout->count(); ++i) {
+        QWidget* w = continuousLayout->itemAt(i)->widget();
+        if (!w)
+            continue;
+
+        int top = w->y();
+        int bottom = top + w->height();
+
+        // 判断页面是否与视口相交 (增加 renderBuffer 像素的预加载)
+        /**
+         * @todo 这里视口检测依然有点小问题, 不过逻辑差不多理清楚了,
+         * 明天就修(如果有时间)
+         */
+        int bufferPx =
+            (viewportBottom - viewportTop) / 2;  // 假设 buffer 是页数，转为像素
+        if (top <= (viewportTop - bufferPx) &&
+            bottom >= (viewportBottom + bufferPx)) {
+            if (newVisibleStart == -1)
+                newVisibleStart = i;
+            newVisibleEnd = i;
+        } else if (top > (viewportTop - bufferPx) &&
+                   bottom >= (viewportBottom + bufferPx) &&
+                   top < (viewportBottom + bufferPx)) {
+            if (newVisibleStart == -1)
+                newVisibleStart = i;
+            newVisibleEnd = i;
+        } else if (top <= (viewportTop - bufferPx) &&
+                   bottom < (viewportBottom + bufferPx) &&
+                   bottom > (viewportTop - bufferPx)) {
+            if (newVisibleStart == -1)
+                newVisibleStart = i;
+            newVisibleEnd = i;
         }
     }
 
-    if (estimatedPageHeight <= 0)
-        estimatedPageHeight = viewportHeight;
+    // 兜底：如果没找到（可能布局还没完成），至少渲染第一页或当前估算的页面
+    if (newVisibleStart == -1) {
+        newVisibleStart = 0;
+        newVisibleEnd = 0;
+    }
 
-    // 改进可见页面范围计算，确保至少渲染一页
-    int pagesVisibleInView = qMax(1, viewportHeight / estimatedPageHeight);
-    int newVisibleStart =
-        qMax(0, scrollValue / estimatedPageHeight - renderBuffer);
-    int newVisibleEnd =
-        qMin(totalPages - 1, (scrollValue / estimatedPageHeight) +
-                                 pagesVisibleInView + renderBuffer);
-
-    // 如果可见范围发生变化，更新渲染
     if (newVisibleStart != visiblePageStart ||
         newVisibleEnd != visiblePageEnd) {
         visiblePageStart = newVisibleStart;
         visiblePageEnd = newVisibleEnd;
         renderVisiblePages();
-    } else {
-        visiblePageStart = newVisibleStart;
-        visiblePageEnd += 1;
-        renderVisiblePages();
     }
 }
 
 void PDFViewer::renderVisiblePages() {
-    if (!document || currentViewMode != PDFViewMode::ContinuousScroll) {
+    if (!document)
         return;
-    }
 
-    // 只渲染可见范围内的页面，延迟渲染避免卡顿
-    // 页面保持可见（不隐藏），只是内容可能还没渲染
-    for (int i = 0; i < continuousLayout->count() - 1; ++i) {
-        // 如果页面在可见范围内或缓冲区范围内，且还未渲染
-        if (i >= visiblePageStart && i <= visiblePageEnd &&
-            !renderedPages.contains(i)) {
-            QLayoutItem* item = continuousLayout->itemAt(i);
-            if (item && item->widget()) {
-                PDFPageWidget* pageWidget =
-                    qobject_cast<PDFPageWidget*>(item->widget());
-                if (pageWidget) {
-                    // 异步渲染页面，避免阻塞UI
-                    int pageIndex = i;
-                    QTimer::singleShot(
-                        0, this, [this, pageWidget, pageIndex]() {
-                            if (!document)
-                                return;
-                            std::unique_ptr<Poppler::Page> page(
-                                document->page(pageIndex));
-                            if (page) {
-                                pageWidget->blockSignals(true);
-                                pageWidget->setPage(page.release(),
-                                                    currentZoomFactor,
-                                                    currentRotation);
-                                pageWidget->blockSignals(false);
-                                renderedPages.insert(pageIndex);
-                            }
-                        });
+    // 重要：如果缩放了，之前的渲染图是不清楚的，需要重新渲染
+    // 建议在 setZoomFactor 时执行 renderedPages.clear();
+
+    for (int i = visiblePageStart; i <= visiblePageEnd; ++i) {
+        if (i < 0 || i >= continuousLayout->count())
+            continue;
+
+        // 如果已经渲染过且缩放没变，则跳过
+        if (renderedPages.contains(i))
+            continue;
+
+        QLayoutItem* item = continuousLayout->itemAt(i);
+        PDFPageWidget* pageWidget =
+            qobject_cast<PDFPageWidget*>(item ? item->widget() : nullptr);
+
+        if (pageWidget) {
+            int pageIndex = i;
+            // 使用 Lambda 捕获当前缩放，防止异步执行时缩放已变
+            double zoom = currentZoomFactor;
+
+            QTimer::singleShot(0, this, [this, pageWidget, pageIndex, zoom]() {
+                if (!document)
+                    return;
+
+                // 再次检查，防止重复渲染
+                if (renderedPages.contains(pageIndex))
+                    return;
+
+                std::unique_ptr<Poppler::Page> page(document->page(pageIndex));
+                if (page) {
+                    pageWidget->setPage(page.release(), zoom, currentRotation);
+                    renderedPages.insert(pageIndex);
                 }
-            }
+            });
         }
     }
 }
