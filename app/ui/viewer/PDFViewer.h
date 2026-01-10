@@ -78,6 +78,9 @@ public:
     int getRotation() const { return currentRotation; }
     void renderPage();  // Make public for refresh functionality
 
+    // 快速缩放：只对已渲染的pixmap进行缩放，不重新渲染PDF
+    void quickScale(double factor);
+
     // Search highlight management
     void setSearchResults(const QList<SearchResult>& results);
     void clearSearchHighlights();
@@ -109,6 +112,8 @@ private:
     double currentScaleFactor;
     int currentRotation;
     QPixmap renderedPixmap;
+    QPixmap originalPixmap;  // 保存原始渲染的pixmap，用于快速缩放
+    double originalScaleFactor;  // 原始pixmap的缩放因子
     bool isDragging;
     QPoint lastPanPoint;
 
@@ -239,6 +244,7 @@ protected:
 
     // 缩放相关方法
     void applyZoom(double factor);
+    void quickApplyZoom(double factor);  // 快速缩放，只对已渲染页面进行图像缩放
     void saveZoomSettings();
     void loadZoomSettings();
 
@@ -250,6 +256,8 @@ protected:
 private slots:
     void onPageNumberChanged(int pageNumber);
     void onZoomSliderChanged(int value);
+    void onZoomSliderPressed();
+    void onZoomSliderReleased();
     void onScaleChanged(double scale);
     void onViewModeChanged(int index);
     void onZoomPercentageChanged();
@@ -316,6 +324,7 @@ private:
     QTimer* zoomTimer;
     double pendingZoomFactor;
     bool isZoomPending;
+    bool isSliderDragging;  // 跟踪滑块是否正在被拖动
 
     // 测试支持
     bool m_enableStyling;
