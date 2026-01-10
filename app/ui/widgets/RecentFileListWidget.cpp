@@ -53,7 +53,20 @@ RecentFileItemWidget::RecentFileItemWidget(const RecentFileInfo& fileInfo,
     applyTheme();
 }
 
-RecentFileItemWidget::~RecentFileItemWidget() {}
+RecentFileItemWidget::~RecentFileItemWidget() {
+    // 停止所有动画以避免在析构时访问已删除的对象
+    if (m_hoverAnimation) {
+        m_hoverAnimation->stop();
+    }
+    if (m_pressAnimation) {
+        m_pressAnimation->stop();
+    }
+
+    // 清除图形效果以避免QPainter错误
+    if (m_opacityEffect) {
+        setGraphicsEffect(nullptr);
+    }
+}
 
 void RecentFileItemWidget::updateFileInfo(const RecentFileInfo& fileInfo) {
     m_fileInfo = fileInfo;
@@ -172,7 +185,10 @@ void RecentFileItemWidget::leaveEvent(QEvent* event) {
 }
 
 void RecentFileItemWidget::paintEvent(QPaintEvent* event) {
-    // 先绘制自定义内容
+    // 调用父类绘制基础内容
+    QFrame::paintEvent(event);
+
+    // 只有在需要时才进行自定义绘制
     if (m_isPressed) {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
@@ -183,9 +199,6 @@ void RecentFileItemWidget::paintEvent(QPaintEvent* event) {
 
         painter.fillRect(rect(), pressedColor);
     }
-
-    // 然后调用父类绘制边框等
-    QFrame::paintEvent(event);
 }
 
 void RecentFileItemWidget::onRemoveClicked() {
@@ -239,17 +252,12 @@ void RecentFileItemWidget::setupUI() {
 }
 
 void RecentFileItemWidget::setupAnimations() {
-    // Setup opacity effect for smooth animations
-    m_opacityEffect = new QGraphicsOpacityEffect(this);
-    m_opacityEffect->setOpacity(1.0);
-    setGraphicsEffect(m_opacityEffect);
+    // 不使用QGraphicsOpacityEffect，因为它会与自定义绘制冲突
+    // 改用样式表实现hover效果
+    m_opacityEffect = nullptr;
+    m_hoverAnimation = nullptr;
 
-    // Hover animation
-    m_hoverAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
-    m_hoverAnimation->setDuration(200);
-    m_hoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
-
-    // Press animation
+    // 只保留按压动画，但也要小心使用
     m_pressAnimation = new QPropertyAnimation(this, "geometry", this);
     m_pressAnimation->setDuration(100);
     m_pressAnimation->setEasingCurve(QEasingCurve::OutQuad);
@@ -347,49 +355,19 @@ void RecentFileItemWidget::setHovered(bool hovered) {
         m_removeButton->setVisible(hovered);
     }
 
-    // Start hover animation
-    startHoverAnimation(hovered);
-
+    // 不使用动画，直接通过样式表处理hover效果
     update();
 }
 
 void RecentFileItemWidget::startHoverAnimation(bool hovered) {
-    if (!m_hoverAnimation || !m_opacityEffect)
-        return;
-
-    m_hoverAnimation->stop();
-
-    if (hovered) {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(0.9);
-    } else {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(1.0);
-    }
-
-    m_hoverAnimation->start();
+    // 已移除opacity动画以避免QPainter冲突
+    // hover效果现在完全通过CSS样式表处理
 }
 
 void RecentFileItemWidget::startPressAnimation() {
-    if (!m_pressAnimation)
-        return;
-
-    QRect currentGeometry = geometry();
-    QRect pressedGeometry = currentGeometry.adjusted(2, 2, -2, -2);
-
-    m_pressAnimation->stop();
-    m_pressAnimation->setStartValue(currentGeometry);
-    m_pressAnimation->setEndValue(pressedGeometry);
-    m_pressAnimation->start();
-
-    // Return to normal size after a short delay
-    QTimer::singleShot(100, [this, currentGeometry]() {
-        if (m_pressAnimation) {
-            m_pressAnimation->setStartValue(geometry());
-            m_pressAnimation->setEndValue(currentGeometry);
-            m_pressAnimation->start();
-        }
-    });
+    // 简化按压动画，避免几何变换导致的重绘问题
+    // 只使用paintEvent中的视觉反馈
+    update();
 }
 
 // RecentFileListWidget Implementation
@@ -418,7 +396,15 @@ RecentFileListWidget::RecentFileListWidget(QWidget* parent)
     updateEmptyState();
 }
 
-RecentFileListWidget::~RecentFileListWidget() {}
+RecentFileListWidget::~RecentFileListWidget() {
+    // 停止刷新定时器
+    if (m_refreshTimer) {
+        m_refreshTimer->stop();
+    }
+
+    // 清理所有文件条目
+    clearList();
+}
 
 void RecentFileListWidget::setRecentFilesManager(RecentFilesManager* manager) {
     if (m_recentFilesManager == manager)
@@ -478,7 +464,12 @@ void RecentFileListWidget::clearList() {
     // 删除所有文件条目
     for (RecentFileItemWidget* item : m_fileItems) {
         if (item) {
-            m_contentLayout->removeWidget(qobject_cast<QWidget*>(item));
+            // 先断开所有信号连接
+            disconnect(item, nullptr, this, nullptr);
+            // 从布局中移除
+            m_contentLayout->removeWidget(item);
+            // 立即删除以避免悬空指针
+            item->setParent(nullptr);
             item->deleteLater();
         }
     }
@@ -639,9 +630,15 @@ void RecentFileListWidget::addFileItem(const RecentFileInfo& fileInfo) {
 void RecentFileListWidget::removeFileItem(const QString& filePath) {
     for (int i = 0; i < m_fileItems.size(); ++i) {
         RecentFileItemWidget* item = m_fileItems[i];
-        if (item->fileInfo().filePath == filePath) {
-            m_contentLayout->removeWidget(qobject_cast<QWidget*>(item));
+        if (item && item->fileInfo().filePath == filePath) {
+            // 断开信号连接
+            disconnect(item, nullptr, this, nullptr);
+            // 从布局中移除
+            m_contentLayout->removeWidget(item);
+            // 从列表中移除
             m_fileItems.removeAt(i);
+            // 删除widget
+            item->setParent(nullptr);
             item->deleteLater();
             break;
         }

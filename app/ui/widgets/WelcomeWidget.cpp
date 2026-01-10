@@ -70,13 +70,10 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
     // 初始化UI
     initializeUI();
 
-    // 设置动画效果
-    m_opacityEffect = new QGraphicsOpacityEffect(this);
-    setGraphicsEffect(m_opacityEffect);
-
-    m_fadeAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
-    m_fadeAnimation->setDuration(300);
-    m_fadeAnimation->setEasingCurve(QEasingCurve::InOutQuad);
+    // 不使用QGraphicsOpacityEffect以避免QPainter冲突
+    // 淡入效果可以通过CSS动画或其他方式实现
+    m_opacityEffect = nullptr;
+    m_fadeAnimation = nullptr;
 
     // 设置刷新定时器
     m_refreshTimer = new QTimer(this);
@@ -89,7 +86,23 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
     LOG_DEBUG("WelcomeWidget: Initialization completed");
 }
 
-WelcomeWidget::~WelcomeWidget() { LOG_DEBUG("WelcomeWidget: Destroying..."); }
+WelcomeWidget::~WelcomeWidget() {
+    LOG_DEBUG("WelcomeWidget: Destroying...");
+
+    // 停止所有动画
+    if (m_fadeAnimation) {
+        m_fadeAnimation->stop();
+    }
+
+    if (m_refreshTimer) {
+        m_refreshTimer->stop();
+    }
+
+    // 清除图形效果以避免QPainter错误
+    if (m_opacityEffect) {
+        setGraphicsEffect(nullptr);
+    }
+}
 
 void WelcomeWidget::setRecentFilesManager(RecentFilesManager* manager) {
     if (m_recentFilesManager == manager)
@@ -518,11 +531,6 @@ void WelcomeWidget::updateLayout() {
 }
 
 void WelcomeWidget::startFadeInAnimation() {
-    if (!m_fadeAnimation || !m_opacityEffect)
-        return;
-
-    m_opacityEffect->setOpacity(0.0);
-    m_fadeAnimation->setStartValue(0.0);
-    m_fadeAnimation->setEndValue(1.0);
-    m_fadeAnimation->start();
+    // 淡入动画已禁用以避免QPainter冲突
+    // 如果需要，可以使用CSS动画替代
 }

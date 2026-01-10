@@ -74,10 +74,11 @@ private:
     bool m_isPressed;
 
     // 动画效果
-    QPropertyAnimation* m_hoverAnimation;
+    QPropertyAnimation* m_hoverAnimation;  // 已废弃，不再使用以避免QPainter冲突
     QPropertyAnimation* m_pressAnimation;
-    QGraphicsOpacityEffect* m_opacityEffect;
-    qreal m_currentOpacity;
+    QGraphicsOpacityEffect*
+        m_opacityEffect;     // 已废弃，不再使用以避免QPainter冲突
+    qreal m_currentOpacity;  // 已废弃
 
     // Enhanced 样式常量 with modern card design
     static const int ITEM_HEIGHT =
