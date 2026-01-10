@@ -1513,10 +1513,13 @@ void PDFViewer::renderVisiblePages() {
             PDFPageWidget* pageWidget =
                 qobject_cast<PDFPageWidget*>(item->widget());
             if (pageWidget) {
-                // 只渲染可见范围内的页面
-                bool shouldRender =
-                    (i >= visiblePageStart && i <= visiblePageEnd);
-                pageWidget->setVisible(shouldRender);
+                // 修复：不要隐藏页面，只控制是否需要渲染新的内容
+                // 问题：当页面被隐藏时，布局高度会变化，导致滚动条maximum变化
+                // 解决方案：保持所有页面可见，只在需要时更新渲染内容
+                // 对于简单的实现，我们暂时不做虚拟化渲染
+                // 页面始终可见，避免滚动条跳动问题
+                Q_UNUSED(visiblePageStart);
+                Q_UNUSED(visiblePageEnd);
             }
         }
     }
