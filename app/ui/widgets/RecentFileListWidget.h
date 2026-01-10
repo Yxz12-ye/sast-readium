@@ -3,7 +3,6 @@
 #include <QDateTime>
 #include <QEnterEvent>
 #include <QFrame>
-#include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
@@ -45,7 +44,6 @@ protected:
     void mouseReleaseEvent(QMouseEvent* event) override;
     void enterEvent(QEnterEvent* event) override;
     void leaveEvent(QEvent* event) override;
-    void paintEvent(QPaintEvent* event) override;
 
 private slots:
     void onRemoveClicked();
@@ -55,7 +53,6 @@ private:
     void setupAnimations();
     void updateDisplay();
     void setHovered(bool hovered);
-    void startHoverAnimation(bool hovered);
     void startPressAnimation();
 
     RecentFileInfo m_fileInfo;
@@ -74,10 +71,7 @@ private:
     bool m_isPressed;
 
     // 动画效果
-    QPropertyAnimation* m_hoverAnimation;
     QPropertyAnimation* m_pressAnimation;
-    QGraphicsOpacityEffect* m_opacityEffect;
-    qreal m_currentOpacity;
 
     // Enhanced 样式常量 with modern card design
     static const int ITEM_HEIGHT =

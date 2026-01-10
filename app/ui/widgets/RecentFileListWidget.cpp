@@ -38,10 +38,7 @@ RecentFileItemWidget::RecentFileItemWidget(const RecentFileInfo& fileInfo,
       m_removeButton(nullptr),
       m_isHovered(false),
       m_isPressed(false),
-      m_hoverAnimation(nullptr),
-      m_pressAnimation(nullptr),
-      m_opacityEffect(nullptr),
-      m_currentOpacity(1.0) {
+      m_pressAnimation(nullptr) {
     setObjectName("RecentFileItemWidget");
     setFixedHeight(ITEM_HEIGHT);
     setFrameShape(QFrame::NoFrame);
@@ -64,17 +61,23 @@ void RecentFileItemWidget::applyTheme() {
     StyleManager& styleManager = StyleManager::instance();
 
     // VSCode-style base styling with subtle hover effect
-    QString baseStyle = QString(
-                            "RecentFileItemWidget {"
-                            "    background-color: transparent;"
-                            "    border: none;"
-                            "    border-radius: 6px;"
-                            "    padding: 8px 12px;"
-                            "}"
-                            "RecentFileItemWidget:hover {"
-                            "    background-color: %1;"
-                            "}")
-                            .arg(styleManager.hoverColor().name());
+    // 更新样式表：添加 :pressed 状态，移除 opacity 动画依赖
+    QString baseStyle =
+        QString(
+            "RecentFileItemWidget {"
+            "    background-color: transparent;"
+            "    border: none;"
+            "    border-radius: 6px;"
+            "    padding: 8px 12px;"
+            "}"
+            "RecentFileItemWidget:hover {"
+            "    background-color: %1;"
+            "}"
+            "RecentFileItemWidget:pressed {"
+            "    background-color: %2;"
+            "}")
+            .arg(styleManager.hoverColor().name())
+            .arg(styleManager.pressedColor().name());  // 添加按下颜色
 
     setStyleSheet(baseStyle);
 
@@ -171,23 +174,6 @@ void RecentFileItemWidget::leaveEvent(QEvent* event) {
     QFrame::leaveEvent(event);
 }
 
-void RecentFileItemWidget::paintEvent(QPaintEvent* event) {
-    // 先绘制自定义内容
-    if (m_isPressed) {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-
-        StyleManager& styleManager = StyleManager::instance();
-        QColor pressedColor = styleManager.pressedColor();
-        pressedColor.setAlpha(100);
-
-        painter.fillRect(rect(), pressedColor);
-    }
-
-    // 然后调用父类绘制边框等
-    QFrame::paintEvent(event);
-}
-
 void RecentFileItemWidget::onRemoveClicked() {
     emit removeRequested(m_fileInfo.filePath);
 }
@@ -239,16 +225,6 @@ void RecentFileItemWidget::setupUI() {
 }
 
 void RecentFileItemWidget::setupAnimations() {
-    // Setup opacity effect for smooth animations
-    m_opacityEffect = new QGraphicsOpacityEffect(this);
-    m_opacityEffect->setOpacity(1.0);
-    setGraphicsEffect(m_opacityEffect);
-
-    // Hover animation
-    m_hoverAnimation = new QPropertyAnimation(m_opacityEffect, "opacity", this);
-    m_hoverAnimation->setDuration(200);
-    m_hoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
-
     // Press animation
     m_pressAnimation = new QPropertyAnimation(this, "geometry", this);
     m_pressAnimation->setDuration(100);
@@ -347,27 +323,7 @@ void RecentFileItemWidget::setHovered(bool hovered) {
         m_removeButton->setVisible(hovered);
     }
 
-    // Start hover animation
-    startHoverAnimation(hovered);
-
     update();
-}
-
-void RecentFileItemWidget::startHoverAnimation(bool hovered) {
-    if (!m_hoverAnimation || !m_opacityEffect)
-        return;
-
-    m_hoverAnimation->stop();
-
-    if (hovered) {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(0.9);
-    } else {
-        m_hoverAnimation->setStartValue(m_opacityEffect->opacity());
-        m_hoverAnimation->setEndValue(1.0);
-    }
-
-    m_hoverAnimation->start();
 }
 
 void RecentFileItemWidget::startPressAnimation() {
