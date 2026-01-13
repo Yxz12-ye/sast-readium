@@ -19,7 +19,7 @@ option(FORCE_VCPKG "Force vcpkg usage even in MSYS2" OFF)
 option(ENABLE_CLANGD_CONFIG "Enable automatic clangd configuration updates" ON)
 
 # QGraphics PDF support
-option(ENABLE_QGRAPHICS_PDF_SUPPORT "Enable QGraphics-based PDF rendering support" OFF)
+option(ENABLE_QGRAPHICS_PDF_SUPPORT "Enable QGraphics-based PDF rendering support" ON)
 
 # Testing support
 option(BUILD_TESTING "Build tests" ON)

@@ -9,6 +9,10 @@
 #include "../viewer/PDFViewer.h"
 #include "../widgets/DocumentTabWidget.h"
 
+#ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
+#include "../viewer/QGraphicsPDFViewer.h"
+#endif
+
 class ViewWidget : public QWidget {
     Q_OBJECT
 
@@ -84,11 +88,20 @@ private:
     DocumentController* documentController;
     DocumentModel* documentModel;
     PDFOutlineModel* outlineModel;
-    QList<PDFViewer*> pdfViewers;           // 每个文档对应一个PDFViewer
+#ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
+    QList<QGraphicsPDFViewer*>
+        pdfViewers;  // 每个文档对应一个QGraphicsPDFViewer
+#else
+    QList<PDFViewer*> pdfViewers;  // 每个文档对应一个PDFViewer
+#endif
     QList<PDFOutlineModel*> outlineModels;  // 每个文档对应一个目录模型
 
-    // 辅助方法
+// 辅助方法
+#ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
+    QGraphicsPDFViewer* createPDFViewer();
+#else
     PDFViewer* createPDFViewer();
+#endif
     void removePDFViewer(int index);
     void showEmptyState();
     void hideEmptyState();

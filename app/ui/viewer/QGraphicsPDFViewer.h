@@ -88,7 +88,7 @@ class QGraphicsPDFScene : public QGraphicsScene {
 public:
     explicit QGraphicsPDFScene(QObject* parent = nullptr);
 
-    void setDocument(Poppler::Document* document);
+    void setDocument(std::shared_ptr<Poppler::Document> document);
     void clearDocument();
 
     void addPage(int pageNumber);
@@ -118,7 +118,7 @@ protected:
 private:
     void layoutPages();
 
-    Poppler::Document* m_document;
+    std::shared_ptr<Poppler::Document> m_document;
     QMap<int, QGraphicsPDFPageItem*> m_pageItems;
 
     int m_pageSpacing;
@@ -140,7 +140,7 @@ public:
     ~QGraphicsPDFViewer();
 
     // Document management
-    void setDocument(Poppler::Document* document);
+    void setDocument(std::shared_ptr<Poppler::Document> document);
     void clearDocument();
 
     // Navigation
@@ -185,6 +185,7 @@ public:
     // Getters
     int getCurrentPage() const { return m_currentPage; }
     double getZoomFactor() const { return m_zoomFactor; }
+    double getCurrentZoom() const { return m_zoomFactor; }
     int getRotation() const { return m_rotation; }
     int getPageCount() const;
     bool hasDocument() const { return m_document != nullptr; }
@@ -219,7 +220,7 @@ private:
     void fitToHeight();
 
     QGraphicsPDFScene* m_scene;
-    Poppler::Document* m_document;
+    std::shared_ptr<Poppler::Document> m_document;
 
     ViewMode m_viewMode;
     int m_currentPage;

@@ -211,7 +211,8 @@ QGraphicsPDFScene::QGraphicsPDFScene(QObject* parent)
     setBackgroundBrush(QBrush(QColor(128, 128, 128)));
 }
 
-void QGraphicsPDFScene::setDocument(Poppler::Document* document) {
+void QGraphicsPDFScene::setDocument(
+    std::shared_ptr<Poppler::Document> document) {
     clearDocument();
     m_document = document;
 
@@ -425,7 +426,8 @@ void QGraphicsPDFViewer::setupView() {
     setBackgroundBrush(QBrush(QColor(128, 128, 128)));
 }
 
-void QGraphicsPDFViewer::setDocument(Poppler::Document* document) {
+void QGraphicsPDFViewer::setDocument(
+    std::shared_ptr<Poppler::Document> document) {
     clearDocument();
     m_document = document;
 

@@ -110,7 +110,7 @@ void ViewWidget::switchToDocument(int index) {
 void ViewWidget::goToPage(int pageNumber) {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
-        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        auto currentViewer = pdfViewers[currentIndex];
         if (currentViewer) {
             currentViewer->goToPage(pageNumber);
         }
@@ -120,9 +120,14 @@ void ViewWidget::goToPage(int pageNumber) {
 void ViewWidget::setCurrentViewMode(int mode) {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
-        PDFViewer* currentViewer = pdfViewers[currentIndex];
+        auto currentViewer = pdfViewers[currentIndex];
         if (currentViewer) {
+#ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
+            QGraphicsPDFViewer::ViewMode viewMode =
+                static_cast<QGraphicsPDFViewer::ViewMode>(mode);
+#else
             PDFViewMode viewMode = static_cast<PDFViewMode>(mode);
+#endif
             currentViewer->setViewMode(viewMode);
         }
     }
@@ -134,7 +139,7 @@ void ViewWidget::executePDFAction(ActionMap action) {
         return;  // 没有当前文档
     }
 
-    PDFViewer* currentViewer = pdfViewers[currentIndex];
+    auto currentViewer = pdfViewers[currentIndex];
     if (!currentViewer)
         return;
 
@@ -199,7 +204,7 @@ PDFOutlineModel* ViewWidget::getCurrentOutlineModel() const {
 int ViewWidget::getCurrentPage() const {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
-        PDFViewer* viewer = pdfViewers[currentIndex];
+        auto viewer = pdfViewers[currentIndex];
         return viewer ? viewer->getCurrentPage() : 0;
     }
     return 0;
@@ -208,7 +213,7 @@ int ViewWidget::getCurrentPage() const {
 int ViewWidget::getCurrentPageCount() const {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
-        PDFViewer* viewer = pdfViewers[currentIndex];
+        auto viewer = pdfViewers[currentIndex];
         return viewer ? viewer->getPageCount() : 0;
     }
     return 0;
@@ -217,7 +222,7 @@ int ViewWidget::getCurrentPageCount() const {
 double ViewWidget::getCurrentZoom() const {
     int currentIndex = getCurrentDocumentIndex();
     if (currentIndex >= 0 && currentIndex < pdfViewers.size()) {
-        PDFViewer* viewer = pdfViewers[currentIndex];
+        auto viewer = pdfViewers[currentIndex];
         return viewer ? viewer->getCurrentZoom() : 1.0;
     }
     return 1.0;
@@ -231,7 +236,7 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
     auto document = documentModel->getDocument(index);
 
     // 创建新的PDF查看器
-    PDFViewer* viewer = createPDFViewer();
+    auto viewer = createPDFViewer();
     viewer->setDocument(document);
 
     // 创建目录模型并解析目录
@@ -321,7 +326,7 @@ void ViewWidget::onCurrentDocumentChanged(int index) {
 
 void ViewWidget::onAllDocumentsClosed() {
     // 清理所有PDF查看器
-    for (PDFViewer* viewer : pdfViewers) {
+    for (auto viewer : pdfViewers) {
         viewerStack->removeWidget(viewer);
         viewer->deleteLater();
     }
@@ -395,7 +400,7 @@ void ViewWidget::onTabMoved(int from, int to) {
     }
 
     // 移动PDF查看器
-    PDFViewer* viewer = pdfViewers.takeAt(from);
+    auto viewer = pdfViewers.takeAt(from);
     pdfViewers.insert(to, viewer);
 
     // 移动堆叠组件中的widget
@@ -406,6 +411,19 @@ void ViewWidget::onTabMoved(int from, int to) {
     qDebug() << "Tab moved from" << from << "to" << to;
 }
 
+#ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
+QGraphicsPDFViewer* ViewWidget::createPDFViewer() {
+    QGraphicsPDFViewer* viewer = new QGraphicsPDFViewer(this);
+
+    // 连接PDF查看器的信号
+    connect(viewer, &QGraphicsPDFViewer::currentPageChanged, this,
+            &ViewWidget::onPDFPageChanged);
+    connect(viewer, &QGraphicsPDFViewer::zoomChanged, this,
+            &ViewWidget::onPDFZoomChanged);
+
+    return viewer;
+}
+#else
 PDFViewer* ViewWidget::createPDFViewer() {
     PDFViewer* viewer = new PDFViewer(this);
 
@@ -417,6 +435,7 @@ PDFViewer* ViewWidget::createPDFViewer() {
 
     return viewer;
 }
+#endif
 
 QWidget* ViewWidget::createLoadingWidget(const QString& fileName) {
     QWidget* loadingWidget = new QWidget(this);
@@ -453,7 +472,7 @@ void ViewWidget::removePDFViewer(int index) {
     if (index < 0 || index >= pdfViewers.size())
         return;
 
-    PDFViewer* viewer = pdfViewers.takeAt(index);
+    auto viewer = pdfViewers.takeAt(index);
     viewerStack->removeWidget(viewer);
     viewer->deleteLater();
 }
@@ -479,8 +498,13 @@ void ViewWidget::showEmptyState() {
 void ViewWidget::hideEmptyState() { tabWidget->show(); }
 
 void ViewWidget::onPDFPageChanged(int pageNumber) {
-    // 只有当前活动的PDF查看器的信号才需要处理
+// 只有当前活动的PDF查看器的信号才需要处理
+#ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
+    QGraphicsPDFViewer* sender =
+        qobject_cast<QGraphicsPDFViewer*>(QObject::sender());
+#else
     PDFViewer* sender = qobject_cast<PDFViewer*>(QObject::sender());
+#endif
     int currentIndex = getCurrentDocumentIndex();
 
     if (currentIndex >= 0 && currentIndex < pdfViewers.size() &&
@@ -491,8 +515,13 @@ void ViewWidget::onPDFPageChanged(int pageNumber) {
 }
 
 void ViewWidget::onPDFZoomChanged(double zoomFactor) {
-    // 只有当前活动的PDF查看器的信号才需要处理
+// 只有当前活动的PDF查看器的信号才需要处理
+#ifdef ENABLE_QGRAPHICS_PDF_SUPPORT
+    QGraphicsPDFViewer* sender =
+        qobject_cast<QGraphicsPDFViewer*>(QObject::sender());
+#else
     PDFViewer* sender = qobject_cast<PDFViewer*>(QObject::sender());
+#endif
     int currentIndex = getCurrentDocumentIndex();
 
     if (currentIndex >= 0 && currentIndex < pdfViewers.size() &&
