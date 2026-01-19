@@ -183,8 +183,8 @@ void DocumentMetadataDialog::applyCurrentTheme() {
     setStyleSheet(StyleManager::instance().getApplicationStyleSheet());
 }
 
-void DocumentMetadataDialog::setDocument(Poppler::Document* document,
-                                         const QString& filePath) {
+void DocumentMetadataDialog::setDocument(
+    std::shared_ptr<Poppler::Document> document, const QString& filePath) {
     m_currentDocument = document;
     m_currentFilePath = filePath;
 
@@ -194,9 +194,9 @@ void DocumentMetadataDialog::setDocument(Poppler::Document* document,
     }
 
     try {
-        populateBasicInfo(filePath, document);
-        populateDocumentProperties(document);
-        populateSecurityInfo(document);
+        populateBasicInfo(filePath);
+        populateDocumentProperties();
+        populateSecurityInfo();
     } catch (const std::exception& e) {
         QMessageBox::warning(this, tr("错误"),
                              tr("获取文档元数据时发生错误: %1").arg(e.what()));
@@ -226,8 +226,7 @@ void DocumentMetadataDialog::clearMetadata() {
     m_canModifyEdit->clear();
 }
 
-void DocumentMetadataDialog::populateBasicInfo(const QString& filePath,
-                                               Poppler::Document* document) {
+void DocumentMetadataDialog::populateBasicInfo(const QString& filePath) {
     QFileInfo fileInfo(filePath);
 
     // 文件名
@@ -242,58 +241,57 @@ void DocumentMetadataDialog::populateBasicInfo(const QString& filePath,
     m_fileSizeEdit->setText(formatFileSize(fileSize));
 
     // 页数
-    if (document) {
-        int pageCount = document->numPages();
+    if (m_currentDocument) {
+        int pageCount = m_currentDocument->numPages();
         m_pageCountEdit->setText(QString::number(pageCount));
     } else {
         m_pageCountEdit->setText(tr("未知"));
     }
 }
 
-void DocumentMetadataDialog::populateDocumentProperties(
-    Poppler::Document* document) {
-    if (!document) {
+void DocumentMetadataDialog::populateDocumentProperties() {
+    if (!m_currentDocument) {
         return;
     }
 
     // 直接使用Poppler::Document的info方法获取元数据
-    QString title = document->info("Title");
+    QString title = m_currentDocument->info("Title");
     m_titleEdit->setText(title.isEmpty() ? tr("未设置") : title);
 
-    QString author = document->info("Author");
+    QString author = m_currentDocument->info("Author");
     m_authorEdit->setText(author.isEmpty() ? tr("未设置") : author);
 
-    QString subject = document->info("Subject");
+    QString subject = m_currentDocument->info("Subject");
     m_subjectEdit->setText(subject.isEmpty() ? tr("未设置") : subject);
 
-    QString keywords = document->info("Keywords");
+    QString keywords = m_currentDocument->info("Keywords");
     m_keywordsEdit->setText(keywords.isEmpty() ? tr("未设置") : keywords);
 
-    QString creator = document->info("Creator");
+    QString creator = m_currentDocument->info("Creator");
     m_creatorEdit->setText(creator.isEmpty() ? tr("未设置") : creator);
 
-    QString producer = document->info("Producer");
+    QString producer = m_currentDocument->info("Producer");
     m_producerEdit->setText(producer.isEmpty() ? tr("未设置") : producer);
 
-    QString creationDate = document->info("CreationDate");
+    QString creationDate = m_currentDocument->info("CreationDate");
     m_creationDateEdit->setText(formatDateTime(creationDate));
 
-    QString modificationDate = document->info("ModDate");
+    QString modificationDate = m_currentDocument->info("ModDate");
     m_modificationDateEdit->setText(formatDateTime(modificationDate));
 }
 
-void DocumentMetadataDialog::populateSecurityInfo(Poppler::Document* document) {
-    if (!document) {
+void DocumentMetadataDialog::populateSecurityInfo() {
+    if (!m_currentDocument) {
         return;
     }
 
     // 直接使用Poppler::Document的方法获取安全信息
-    bool isEncrypted = document->isEncrypted();
+    bool isEncrypted = m_currentDocument->isEncrypted();
     m_encryptedEdit->setText(isEncrypted ? tr("是") : tr("否"));
 
     // 简化的权限检查 - 对于基本的元数据显示，这些就足够了
     m_canExtractTextEdit->setText(
-        tr("是"));  // 如果能打开文档，通常可以提取文本
+        tr("是"));                       // 如果能打开文档，通常可以提取文本
     m_canPrintEdit->setText(tr("是"));   // 简化处理
     m_canModifyEdit->setText(tr("否"));  // PDF查看器通常不允许修改
 }

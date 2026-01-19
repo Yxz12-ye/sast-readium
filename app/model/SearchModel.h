@@ -87,9 +87,11 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     // Search operations
-    void startSearch(Poppler::Document* document, const QString& query,
+    void startSearch(std::shared_ptr<Poppler::Document> document,
+                     const QString& query,
                      const SearchOptions& options = SearchOptions());
-    void startRealTimeSearch(Poppler::Document* document, const QString& query,
+    void startRealTimeSearch(std::shared_ptr<Poppler::Document> document,
+                             const QString& query,
                              const SearchOptions& options = SearchOptions());
     void clearResults();
     void cancelSearch();
@@ -143,7 +145,7 @@ private:
     bool m_isSearching;
     QString m_currentQuery;
     SearchOptions m_currentOptions;
-    Poppler::Document* m_document;
+    std::shared_ptr<Poppler::Document> m_document;
     QList<SearchResult> m_searchResults;
 
     QFuture<QList<SearchResult>> m_searchFuture;

@@ -16,9 +16,9 @@ class RecentFilesManager;
 struct DocumentInfo {
     QString filePath;
     QString fileName;
-    std::unique_ptr<Poppler::Document> document;
+    std::shared_ptr<Poppler::Document> document;
 
-    DocumentInfo(const QString& path, std::unique_ptr<Poppler::Document> doc)
+    DocumentInfo(const QString& path, std::shared_ptr<Poppler::Document> doc)
         : filePath(path), document(std::move(doc)) {
         fileName = QFileInfo(path).baseName();
     }
@@ -28,7 +28,7 @@ class DocumentModel : public QObject {
     Q_OBJECT
 
 private:
-    std::vector<std::unique_ptr<DocumentInfo>> documents;
+    std::vector<std::shared_ptr<DocumentInfo>> documents;
     int currentDocumentIndex;
 
     // 异步加载器
@@ -64,8 +64,8 @@ public:
     QString getCurrentFileName() const;
     QString getDocumentFileName(int index) const;
     QString getDocumentFilePath(int index) const;
-    Poppler::Document* getCurrentDocument() const;
-    Poppler::Document* getDocument(int index) const;
+    std::shared_ptr<Poppler::Document> getCurrentDocument() const;
+    std::shared_ptr<Poppler::Document> getDocument(int index) const;
     bool isEmpty() const;
     bool isValidIndex(int index) const;
     bool isNULL();

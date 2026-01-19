@@ -96,10 +96,16 @@ void MainWindow::initContent() {
 
     // 创建主PDF查看器区域（包含侧边栏和视图）
     QWidget* mainViewerWidget = new QWidget();
+    // 便于调试和样式设置
+    mainViewerWidget->setObjectName("MainViewerWidget");
+
     QHBoxLayout* mainViewerLayout = new QHBoxLayout(mainViewerWidget);
     mainViewerLayout->setContentsMargins(0, 0, 0, 0);
 
     mainSplitter = new QSplitter(Qt::Horizontal, mainViewerWidget);
+    // 便于调试和样式设置
+    mainSplitter->setObjectName("MainSplitter");
+
     mainSplitter->addWidget(sideBar);
     mainSplitter->addWidget(viewWidget);
     mainSplitter->addWidget(rightSideBar);
@@ -369,13 +375,9 @@ void MainWindow::onCurrentDocumentChangedForOutline(int index) {
 
     // 设置缩略图文档
     if (documentModel && index >= 0) {
-        Poppler::Document* document = documentModel->getDocument(index);
-        if (document) {
-            // 创建shared_ptr包装
-            std::shared_ptr<Poppler::Document> sharedDoc(
-                document, [](Poppler::Document*) {
-                    // 不删除，因为DocumentModel管理生命周期
-                });
+        std::shared_ptr<Poppler::Document> sharedDoc =
+            documentModel->getDocument(index);
+        if (sharedDoc) {
             sideBar->setDocument(sharedDoc);
         }
     }

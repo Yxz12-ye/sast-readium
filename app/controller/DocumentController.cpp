@@ -279,7 +279,7 @@ void DocumentController::showDocumentMetadata(QWidget* parent) {
             .arg(currentFilePath.isEmpty() ? tr("未知") : currentFilePath);
 
     // Get the current document from the model
-    Poppler::Document* currentDoc = documentModel->getCurrentDocument();
+    auto currentDoc = documentModel->getCurrentDocument();
 
     // Use the full DocumentMetadataDialog instead of simple message box
     DocumentMetadataDialog* dialog = new DocumentMetadataDialog(parent);
@@ -296,7 +296,7 @@ void DocumentController::saveDocumentCopy(QWidget* parent) {
     }
 
     // 获取当前文档
-    Poppler::Document* currentDoc = documentModel->getCurrentDocument();
+    auto currentDoc = documentModel->getCurrentDocument();
     if (!currentDoc) {
         QMessageBox::warning(parent, tr("错误"), tr("无法获取当前文档"));
         return;

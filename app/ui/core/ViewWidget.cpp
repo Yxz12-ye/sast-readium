@@ -228,7 +228,7 @@ void ViewWidget::onDocumentOpened(int index, const QString& fileName) {
         return;
 
     QString filePath = documentModel->getDocumentFilePath(index);
-    Poppler::Document* document = documentModel->getDocument(index);
+    auto document = documentModel->getDocument(index);
 
     // 创建新的PDF查看器
     PDFViewer* viewer = createPDFViewer();
@@ -285,6 +285,11 @@ void ViewWidget::onDocumentClosed(int index) {
 
     if (index < outlineModels.size()) {
         PDFOutlineModel* model = outlineModels.takeAt(index);
+
+        /**
+         * @todo 这里的生命周期管理最好重构
+         */
+
         model->deleteLater();
     }
 

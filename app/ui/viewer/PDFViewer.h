@@ -78,6 +78,9 @@ public:
     int getRotation() const { return currentRotation; }
     void renderPage();  // Make public for refresh functionality
 
+    // 快速缩放：只对已渲染的pixmap进行缩放，不重新渲染PDF
+    void quickScale(double factor);
+
     // Search highlight management
     void setSearchResults(const QList<SearchResult>& results);
     void clearSearchHighlights();
@@ -109,6 +112,8 @@ private:
     double currentScaleFactor;
     int currentRotation;
     QPixmap renderedPixmap;
+    QPixmap originalPixmap;      // 保存原始渲染的pixmap，用于快速缩放
+    double originalScaleFactor;  // 原始pixmap的缩放因子
     bool isDragging;
     QPoint lastPanPoint;
 
@@ -135,7 +140,7 @@ public:
     ~PDFViewer() = default;
 
     // 文档操作
-    void setDocument(Poppler::Document* document);
+    void setDocument(std::shared_ptr<Poppler::Document> document);
     void clearDocument();
 
     // 页面导航
@@ -239,6 +244,7 @@ protected:
 
     // 缩放相关方法
     void applyZoom(double factor);
+    void quickApplyZoom(double factor);  // 快速缩放，只对已渲染页面进行图像缩放
     void saveZoomSettings();
     void loadZoomSettings();
 
@@ -250,6 +256,8 @@ protected:
 private slots:
     void onPageNumberChanged(int pageNumber);
     void onZoomSliderChanged(int value);
+    void onZoomSliderPressed();
+    void onZoomSliderReleased();
     void onScaleChanged(double scale);
     void onViewModeChanged(int index);
     void onZoomPercentageChanged();
@@ -274,6 +282,7 @@ private:
     QScrollArea* continuousScrollArea;
     QWidget* continuousWidget;
     QVBoxLayout* continuousLayout;
+    bool isWidgetReady = false;
 
     // 工具栏控件
     QPushButton* firstPageBtn;
@@ -305,7 +314,7 @@ private:
     SearchWidget* searchWidget;
 
     // 文档数据
-    Poppler::Document* document;
+    std::shared_ptr<Poppler::Document> document;
     int currentPageNumber;
     double currentZoomFactor;
     PDFViewMode currentViewMode;
@@ -314,8 +323,10 @@ private:
 
     // 缩放控制
     QTimer* zoomTimer;
+    double oldZoomFactor;
     double pendingZoomFactor;
     bool isZoomPending;
+    bool isSliderDragging;  // 跟踪滑块是否正在被拖动
 
     // 测试支持
     bool m_enableStyling;
@@ -323,8 +334,9 @@ private:
     // 虚拟化渲染
     int visiblePageStart;
     int visiblePageEnd;
-    int renderBuffer;     // 预渲染缓冲区大小
-    QTimer* scrollTimer;  // 滚动防抖定时器
+    int renderBuffer;                        // 预渲染缓冲区大小
+    QTimer* scrollTimer;                     // 滚动防抖定时器
+    QSet<QPair<int, double>> renderedPages;  // 已渲染的页面集合<页码, 缩放因子>
 
     // 动画效果
     QPropertyAnimation* fadeAnimation;

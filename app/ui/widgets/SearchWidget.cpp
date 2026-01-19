@@ -163,7 +163,7 @@ void SearchWidget::setupShortcuts() {
             &SearchWidget::searchClosed);
 }
 
-void SearchWidget::setDocument(Poppler::Document* document) {
+void SearchWidget::setDocument(std::shared_ptr<Poppler::Document> document) {
     m_document = document;
     clearSearch();
 }

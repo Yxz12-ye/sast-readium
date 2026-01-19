@@ -75,7 +75,8 @@ QHash<int, QByteArray> SearchModel::roleNames() const {
     return roles;
 }
 
-void SearchModel::startSearch(Poppler::Document* document, const QString& query,
+void SearchModel::startSearch(std::shared_ptr<Poppler::Document> document,
+                              const QString& query,
                               const SearchOptions& options) {
     if (m_isSearching) {
         cancelSearch();
@@ -100,9 +101,9 @@ void SearchModel::startSearch(Poppler::Document* document, const QString& query,
     emit searchFinished(m_searchResults.size());
 }
 
-void SearchModel::startRealTimeSearch(Poppler::Document* document,
-                                      const QString& query,
-                                      const SearchOptions& options) {
+void SearchModel::startRealTimeSearch(
+    std::shared_ptr<Poppler::Document> document, const QString& query,
+    const SearchOptions& options) {
     if (!m_isRealTimeSearchEnabled || query.isEmpty()) {
         return;
     }
