@@ -1470,6 +1470,9 @@ void PDFViewer::setViewMode(PDFViewMode mode) {
             switchToContinuousMode();
         }
 
+        // 处理视图模式变化
+        handleViewModeChange(mode);
+
         // 恢复状态
         currentPageNumber = savedPageNumber;
         currentZoomFactor = savedZoomFactor;
@@ -1792,9 +1795,8 @@ void PDFViewer::toggleTheme() {
                    .arg(newTheme == Theme::Dark ? "暗色" : "亮色"));
 }
 
-void PDFViewer::onViewModeChanged(int index) {
-    PDFViewMode mode = static_cast<PDFViewMode>(index);
-    setViewMode(mode);
+// 提取公共方法处理视图模式变化
+void PDFViewer::handleViewModeChange(PDFViewMode mode) {
     if (mode == PDFViewMode::ContinuousScroll) {
         // 延时0.05秒后设置isWidgetReady为true，确保布局完成
         QTimer::singleShot(50, this, [this]() {
@@ -1802,6 +1804,12 @@ void PDFViewer::onViewModeChanged(int index) {
             updateVisiblePages();  // 初始渲染可见页面
         });
     }
+}
+
+void PDFViewer::onViewModeChanged(int index) {
+    PDFViewMode mode = static_cast<PDFViewMode>(index);
+    setViewMode(mode);
+    handleViewModeChange(mode);
 }
 
 void PDFViewer::onZoomPercentageChanged() {

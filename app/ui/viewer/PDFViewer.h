@@ -194,6 +194,9 @@ public:
     void setViewMode(PDFViewMode mode);
     PDFViewMode getViewMode() const { return currentViewMode; }
 
+    // 处理视图模式变化的公共方法
+    void handleViewModeChange(PDFViewMode mode);
+
     // 获取状态
     int getCurrentPage() const { return currentPageNumber; }
     int getPageCount() const;
