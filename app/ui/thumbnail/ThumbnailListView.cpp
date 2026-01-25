@@ -317,6 +317,7 @@ void ThumbnailListView::setCurrentPage(int pageNumber, bool animated) {
         return;
     }
 
+    LOG_INFO("ThumbnailListView: Current page changed from {} to {}", m_currentPage + 1, pageNumber + 1);
     m_currentPage = pageNumber;
 
     if (pageNumber >= 0) {
@@ -553,8 +554,7 @@ void ThumbnailListView::contextMenuEvent(QContextMenuEvent* event) {
 // 缺失的方法实现
 
 void ThumbnailListView::onScrollBarValueChanged(int value) {
-    Q_UNUSED(value);
-    LOG_DEBUG("ThumbnailListView: update thumbnail by ThumbnailListView::onScrollBarValueChanged");
+    Q_UNUSED(value)
     updateVisibleRange();
     updatePreloadRange();
 }
@@ -579,11 +579,10 @@ void ThumbnailListView::onScrollBarRangeChanged(int min, int max) {
     
     // 如果可见范围没有变化，就不需要更新
     if (m_visibleRange.first == firstVisible && m_visibleRange.second == lastVisible) {
-        LOG_DEBUG("ThumbnailListView: Skipping range change update - visible range unchanged ({}~{})", firstVisible, lastVisible);
         return;
     }
     
-    LOG_DEBUG("ThumbnailListView: update thumbnail by ThumbnailListView::onScrollBarRangeChanged ({}~{} -> {}~{})", 
+    LOG_DEBUG("ThumbnailListView: Range changed ({}~{} -> {}~{})", 
               m_visibleRange.first, m_visibleRange.second, firstVisible, lastVisible);
     updateVisibleRange();
 }
@@ -646,15 +645,18 @@ void ThumbnailListView::updateVisibleRange() {
     
     QPair<int, int> oldRange = m_visibleRange;
     m_visibleRange = qMakePair(firstVisible, lastVisible);
-    
-    LOG_DEBUG("ThumbnailListView: Visible range changed from {}~{} to {}~{}", 
-              oldRange.first, oldRange.second, firstVisible, lastVisible);
 
-    // 请求可见范围的缩略图
+    // 请求可见范围的缩略图 - 智能请求，只加载需要的
+    int requestCount = 0;
     for (int i = firstVisible; i <= lastVisible; ++i) {
         QModelIndex index = thumbnailModel->index(i, 0);
         if (index.isValid()) {
-            thumbnailModel->requestThumbnail(i);
+            // 检查是否已经有缓存或正在加载
+            if (!thumbnailModel->hasCachedThumbnail(i) && 
+                !thumbnailModel->isThumbnailLoading(i)) {
+                thumbnailModel->requestThumbnail(i);
+                requestCount++;
+            }
         }
     }
 }
@@ -713,13 +715,8 @@ void ThumbnailListView::updateItemSizes() {
     QSize itemSize = m_thumbnailSize + QSize(20, 40);  // 添加边距
     setGridSize(itemSize);
 
-    // 更新所有项目的大小提示
-    for (int i = 0; i < thumbnailModel->rowCount(); ++i) {
-        QModelIndex index = thumbnailModel->index(i, 0);
-        if (index.isValid()) {
-            update(index);
-        }
-    }
+    // 只触发布局更新，避免强制重绘所有项目
+    scheduleDelayedItemsLayout();
 }
 
 void ThumbnailListView::animateScrollTo(int pageNumber) {
@@ -761,9 +758,19 @@ void ThumbnailListView::updatePreloadRange() {
     int endPage = qMin(thumbnailModel->rowCount() - 1,
                        m_visibleRange.second + preloadCount);
 
+    // 智能预加载：只预加载尚未缓存且不在可见范围内的页面
+    int preloadRequestCount = 0;
     for (int i = startPage; i <= endPage; ++i) {
-        if (i < m_visibleRange.first || i > m_visibleRange.second) {
+        // 跳过可见范围内的页面（这些已经在updateVisibleRange中处理了）
+        if (i >= m_visibleRange.first && i <= m_visibleRange.second) {
+            continue;
+        }
+        
+        // 检查是否需要预加载
+        if (!thumbnailModel->hasCachedThumbnail(i) && 
+            !thumbnailModel->isThumbnailLoading(i)) {
             thumbnailModel->requestThumbnail(i);
+            preloadRequestCount++;
         }
     }
 }
@@ -902,11 +909,17 @@ void ThumbnailListView::optimizedUpdateVisibleRange() {
         thumbnailModel->setViewportRange(firstVisible, lastVisible,
                                          m_preloadMargin);
 
-        // 请求可见范围的缩略图
+        // 请求可见范围的缩略图 - 智能请求，只加载需要的
+        int requestCount = 0;
         for (int i = firstVisible; i <= lastVisible; ++i) {
             QModelIndex index = thumbnailModel->index(i, 0);
             if (index.isValid()) {
-                thumbnailModel->requestThumbnail(i);
+                // 检查是否已经有缓存或正在加载
+                if (!thumbnailModel->hasCachedThumbnail(i) && 
+                    !thumbnailModel->isThumbnailLoading(i)) {
+                    thumbnailModel->requestThumbnail(i);
+                    requestCount++;
+                }
             }
         }
     }
