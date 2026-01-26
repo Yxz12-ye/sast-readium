@@ -9,9 +9,6 @@ on:
 permissions: write-all
 
 env:
-  # Build optimization settings
-  CMAKE_BUILD_PARALLEL_LEVEL: 4
-  MAKEFLAGS: "-j4"
   CACHE_VERSION: v2
   APP_NAME: sast-readium
   # Homebrew optimizations
@@ -87,8 +84,8 @@ jobs:
             -DBUILD_CPP_TESTS=OFF \
             -DENABLE_BOOST=OFF
           
-          # Build and install (use all available cores)
-          ninja -j$(sysctl -n hw.ncpu)
+          # Build and install
+          ninja
           sudo ninja install
           
           # Update library cache
@@ -108,7 +105,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build --preset=Release-Unix --parallel 4
+          cmake --build --preset=Release-Unix --target app
       
       - name: Deploy runtime
         run: |
