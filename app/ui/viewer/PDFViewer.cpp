@@ -1484,6 +1484,15 @@ void PDFViewer::setViewMode(PDFViewMode mode) {
         updateNavigationButtons();
         updateZoomControls();
 
+        // 如果切换到连续滚动模式，需要设置isWidgetReady并渲染可见页面
+        if (mode == PDFViewMode::ContinuousScroll) {
+            // 延时0.05秒后设置isWidgetReady为true，确保布局完成
+            QTimer::singleShot(50, this, [this]() {
+                isWidgetReady = true;
+                updateVisiblePages();  // 初始渲染可见页面
+            });
+        }
+
         emit viewModeChanged(mode);
         setMessage(
             QString("切换到%1模式")

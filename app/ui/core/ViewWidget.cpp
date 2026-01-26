@@ -173,6 +173,12 @@ void ViewWidget::executePDFAction(ActionMap action) {
         case ActionMap::rotateRight:
             currentViewer->rotateRight();
             break;
+        case ActionMap::setSinglePageMode:
+            currentViewer->setViewMode(PDFViewMode::SinglePage);
+            break;
+        case ActionMap::setContinuousScrollMode:
+            currentViewer->setViewMode(PDFViewMode::ContinuousScroll);
+            break;
         default:
             qWarning() << "Unhandled PDF action in ViewWidget:"
                        << static_cast<int>(action);
