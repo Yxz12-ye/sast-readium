@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows: ["Linux Build", "Windows Build", "MacOS Build"]
     types: [completed]
-    branches: [master]
 
 permissions:
   contents: write

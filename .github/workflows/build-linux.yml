@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'  # 也在 tag push 时触发
+      - 'v*'  # 也在 tag push 时触发
   pull_request:
     branches: [ master ]
 
