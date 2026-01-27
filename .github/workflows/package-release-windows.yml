@@ -76,25 +76,25 @@ jobs:
       - name: Build NSIS installer
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path output
-          makensis /DRELEASE_BUILD_DIR="${{ github.workspace }}\artifacts" /DOUT_DIR="output" distrib\package.nsi
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\output"
+          makensis /DRELEASE_BUILD_DIR="${{ github.workspace }}\artifacts" /DOUT_DIR="${{ github.workspace }}\output" distrib\package.nsi
           Write-Host "=== Generated installer ==="
-          Get-ChildItem output\*.exe
+          Get-ChildItem "${{ github.workspace }}\output\*.exe"
 
       - name: Package Windows zip
         shell: pwsh
         run: |
-          Compress-Archive -Path "artifacts\*" -DestinationPath "output\${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-windows-x64-portable.zip"
+          Compress-Archive -Path "${{ github.workspace }}\artifacts\*" -DestinationPath "${{ github.workspace }}\output\${{ env.APP_NAME }}-${{ needs.check-release.outputs.version }}-windows-x64-portable.zip"
           Write-Host "=== All packages ==="
-          Get-ChildItem output\*
+          Get-ChildItem "${{ github.workspace }}\output\*"
 
       - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
           name: release-windows
           path: |
-            output/*.exe
-            output/*.zip
+            ${{ github.workspace }}\output\*.exe
+            ${{ github.workspace }}\output\*.zip
           retention-days: 1
 
   create-release:
