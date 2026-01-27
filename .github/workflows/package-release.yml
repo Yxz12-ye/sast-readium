@@ -170,7 +170,7 @@ jobs:
           
           # 编译 NSIS 安装程序
           # -D 参数覆盖脚本中的路径定义
-          makensis /DRELEASE_BUILD_DIR="artifacts" /DOUT_DIR="output" distrib\package.nsi
+          makensis /DRELEASE_BUILD_DIR="D:\a\sast-readium\sast-readium\artifacts" /DOUT_DIR="output" distrib\package.nsi
           
           Write-Host "=== Generated installer ==="
           Get-ChildItem output\*.exe

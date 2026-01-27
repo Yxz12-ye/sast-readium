@@ -2,7 +2,6 @@
 ; USE MODERN UI
 !include "MUI2.nsh"
 
-; 允许通过命令行 -D 参数覆盖
 !ifndef RELEASE_BUILD_DIR
   !define RELEASE_BUILD_DIR "..\build\Release\app"
 !endif
@@ -18,11 +17,11 @@
 Name "${PRODUCT_NAME_FULL} ${PRODUCT_VERSION}"
 OutFile "${OUT_DIR}\${PRODUCT_NAME}_Installer_${PRODUCT_VERSION}.exe"
 
-; 默认安装目录
+
 InstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
 InstallDirRegKey HKLM "Software\${PRODUCT_NAME}" "InstallDir"
 
-; 请求管理员权限
+
 RequestExecutionLevel admin
 
 !define MUI_ICON "..\assets\images\icon.ico"
@@ -72,10 +71,10 @@ File /nonfatal /a /r "${RELEASE_BUILD_DIR}\styles\"
 SetOutPath $INSTDIR
 CreateShortCut "$DESKTOP\${PRODUCT_NAME_FULL}.lnk" $INSTDIR\${PRODUCT_NAME}.exe
 
-; 写入卸载程序
+
 WriteUninstaller "$INSTDIR\Uninstall.exe"
 
-; 写入注册表（用于控制面板卸载）
+
 WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "DisplayName" "${PRODUCT_NAME_FULL}"
 WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "UninstallString" "$INSTDIR\Uninstall.exe"
 WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "DisplayIcon" "$INSTDIR\${PRODUCT_NAME}.exe"
@@ -85,13 +84,13 @@ WriteRegStr HKLM "Software\${PRODUCT_NAME}" "InstallDir" "$INSTDIR"
 
 SectionEnd
 
-; 卸载 Section
+
 Section "Uninstall"
 
-; 删除快捷方式
+
 Delete "$DESKTOP\${PRODUCT_NAME_FULL}.lnk"
 
-; 删除安装的文件
+
 RMDir /r "$INSTDIR\iconengines"
 RMDir /r "$INSTDIR\imageformats"
 RMDir /r "$INSTDIR\platforms"
@@ -102,7 +101,7 @@ Delete "$INSTDIR\*.qm"
 Delete "$INSTDIR\Uninstall.exe"
 RMDir "$INSTDIR"
 
-; 删除注册表项
+
 DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 DeleteRegKey HKLM "Software\${PRODUCT_NAME}"
 
