@@ -40,14 +40,14 @@ QGraphicsPDFPageItem::QGraphicsPDFPageItem(QGraphicsItem* parent)
                      [this]() { onRenderCompleted(); });
 }
 
-void QGraphicsPDFPageItem::setPage(Poppler::Page* page, double scaleFactor,
-                                   int rotation) {
-    m_page = page;
+void QGraphicsPDFPageItem::setPage(std::unique_ptr<Poppler::Page> page,
+                                   double scaleFactor, int rotation) {
+    m_page = std::move(page);
     m_scaleFactor = qBound(0.1, scaleFactor, 10.0);
     m_rotation = ((rotation % 360) + 360) % 360;
 
-    if (page) {
-        m_pageNumber = page->index();
+    if (m_page) {
+        m_pageNumber = m_page->index();
         renderPageAsync();
     } else {
         setPixmap(QPixmap());
@@ -239,13 +239,13 @@ void QGraphicsPDFScene::addPage(int pageNumber) {
         return;  // Page already added
     }
 
-    std::unique_ptr<Poppler::Page> page(m_document->page(pageNumber));
+    std::unique_ptr<Poppler::Page> page = m_document->page(pageNumber);
     if (!page) {
         return;
     }
 
     QGraphicsPDFPageItem* pageItem = new QGraphicsPDFPageItem();
-    pageItem->setPage(page.get(), m_scaleFactor, m_rotation);
+    pageItem->setPage(std::move(page), m_scaleFactor, m_rotation);
     pageItem->setHighQualityRendering(m_highQualityEnabled);
 
     addItem(pageItem);

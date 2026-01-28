@@ -14,6 +14,7 @@
 #include <QRubberBand>
 #include <QTimer>
 #include <QWheelEvent>
+#include <memory>
 
 class QGraphicsPDFPageItem;
 class QGraphicsPDFScene;
@@ -28,7 +29,7 @@ class QGraphicsPDFPageItem : public QObject, public QGraphicsPixmapItem {
 public:
     explicit QGraphicsPDFPageItem(QGraphicsItem* parent = nullptr);
 
-    void setPage(Poppler::Page* page, double scaleFactor = 1.0,
+    void setPage(std::unique_ptr<Poppler::Page> page, double scaleFactor = 1.0,
                  int rotation = 0);
     void setScaleFactor(double factor);
     void setRotation(int degrees);
@@ -61,7 +62,7 @@ private:
     void renderPage();
     void drawSearchHighlights(QPainter* painter);
 
-    Poppler::Page* m_page;
+    std::unique_ptr<Poppler::Page> m_page;
     double m_scaleFactor;
     int m_rotation;
     int m_pageNumber;
