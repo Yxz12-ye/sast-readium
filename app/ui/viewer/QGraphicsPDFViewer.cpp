@@ -148,6 +148,17 @@ void QGraphicsPDFPageItem::onRenderCompleted() {
     if (!pixmap.isNull()) {
         setPixmap(pixmap);
         update();
+
+        // Notify scene to update layout since page size may have changed
+        QGraphicsScene* scene = this->scene();
+        if (scene) {
+            // Cast to QGraphicsPDFScene and call updateLayout
+            QGraphicsPDFScene* pdfScene =
+                qobject_cast<QGraphicsPDFScene*>(scene);
+            if (pdfScene) {
+                pdfScene->updateLayout();
+            }
+        }
     }
 }
 
