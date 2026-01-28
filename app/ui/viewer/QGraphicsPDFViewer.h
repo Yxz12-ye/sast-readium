@@ -45,6 +45,11 @@ public:
     void renderPageSync();  // For testing purposes
     void setHighQualityRendering(bool enabled);
 
+    // Lazy loading
+    void setVisibleInViewport(bool visible);
+    bool isVisibleInViewport() const { return m_visibleInViewport; }
+    bool isRendered() const { return !pixmap().isNull(); }
+
     // Search highlighting
     void setSearchResults(const QList<QRectF>& results);
     void clearSearchHighlights();
@@ -70,6 +75,7 @@ private:
     int m_pageNumber;
     bool m_highQualityEnabled;
     bool m_isRendering;
+    bool m_visibleInViewport;
 
     QFutureWatcher<QPixmap>* m_renderWatcher;
     QTimer* m_renderTimer;
@@ -111,6 +117,11 @@ public:
     void setScaleFactor(double factor);
     void setRotation(int degrees);
 
+    // Lazy loading
+    void setVisiblePages(const QList<int>& visiblePageNumbers);
+    QList<int> getVisiblePages() const { return m_visiblePages; }
+    int getRenderedPageCount() const;
+
 signals:
     void pageClicked(int pageNumber, QPointF position);
     void scaleChanged(double scale);
@@ -129,6 +140,9 @@ private:
     double m_scaleFactor;
     int m_rotation;
     bool m_highQualityEnabled;
+
+    // Lazy loading
+    QList<int> m_visiblePages;
 };
 
 /**
@@ -179,6 +193,8 @@ public:
     void setPageSpacing(int spacing);
     void setPageMargin(int margin);
     void setSmoothScrolling(bool enabled);
+    void setLazyLoadingEnabled(bool enabled);
+    bool isLazyLoadingEnabled() const { return m_isLazyLoadingEnabled; }
 
     // Search functionality
     void setSearchResults(const QList<QPair<int, QList<QRectF>>>& results);
@@ -273,6 +289,11 @@ private:
     // Performance optimization
     QTimer* m_updateTimer;
     QTimer* m_renderTimer;
+    QTimer* m_lazyLoadTimer;
+    bool m_isLazyLoadingEnabled;
+    QList<int> m_currentVisiblePages;
+
+    QList<int> getVisiblePageNumbers() const;
 };
 
 #endif  // ENABLE_QGRAPHICS_PDF_SUPPORT

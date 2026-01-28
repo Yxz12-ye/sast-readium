@@ -21,6 +21,7 @@ QGraphicsPDFPageItem::QGraphicsPDFPageItem(QGraphicsItem* parent)
       m_pageNumber(-1),
       m_highQualityEnabled(true),
       m_isRendering(false),
+      m_visibleInViewport(false),
       m_currentSearchResultIndex(-1),
       m_normalHighlightColor(255, 255, 0, 100),
       m_currentHighlightColor(255, 165, 0, 150) {
@@ -98,6 +99,17 @@ void QGraphicsPDFPageItem::renderPageSync() {
         pixmap.setDevicePixelRatio(qApp->devicePixelRatio());
         setPixmap(pixmap);
         update();
+    }
+}
+
+void QGraphicsPDFPageItem::setVisibleInViewport(bool visible) {
+    if (m_visibleInViewport != visible) {
+        m_visibleInViewport = visible;
+
+        // 如果页面进入视口且尚未渲染，则渲染页面
+        if (visible && !isRendered() && m_page) {
+            renderPageAsync();
+        }
     }
 }
 
@@ -220,6 +232,26 @@ QGraphicsPDFScene::QGraphicsPDFScene(QObject* parent)
       m_rotation(0),
       m_highQualityEnabled(true) {
     setBackgroundBrush(QBrush(QColor(128, 128, 128)));
+}
+
+void QGraphicsPDFScene::setVisiblePages(const QList<int>& visiblePageNumbers) {
+    // 更新所有页面的可见性状态
+    for (auto* pageItem : m_pageItems) {
+        bool isVisible = visiblePageNumbers.contains(pageItem->getPageNumber());
+        pageItem->setVisibleInViewport(isVisible);
+    }
+
+    m_visiblePages = visiblePageNumbers;
+}
+
+int QGraphicsPDFScene::getRenderedPageCount() const {
+    int count = 0;
+    for (auto* pageItem : m_pageItems) {
+        if (pageItem->isRendered()) {
+            count++;
+        }
+    }
+    return count;
 }
 
 void QGraphicsPDFScene::setDocument(
@@ -395,21 +427,18 @@ QGraphicsPDFViewer::QGraphicsPDFViewer(QWidget* parent)
       m_pageSpacing(20),
       m_pageMargin(50),
       m_isPanning(false),
-      m_rubberBand(nullptr) {
+      m_rubberBand(nullptr),
+      m_isLazyLoadingEnabled(true) {
+    // Setup lazy loading timer
+    m_lazyLoadTimer = new QTimer(this);
+    m_lazyLoadTimer->setSingleShot(true);
+    m_lazyLoadTimer->setInterval(150);  // 150ms debounce delay
+    connect(m_lazyLoadTimer, &QTimer::timeout, this,
+            &QGraphicsPDFViewer::updateVisiblePages);
+
     setupView();
     setupToolbar();
     setupConnections();
-
-    // Setup timers
-    m_updateTimer = new QTimer(this);
-    m_updateTimer->setSingleShot(true);
-    m_updateTimer->setInterval(100);
-    connect(m_updateTimer, &QTimer::timeout, this,
-            &QGraphicsPDFViewer::updateCurrentPage);
-
-    m_renderTimer = new QTimer(this);
-    m_renderTimer->setSingleShot(true);
-    m_renderTimer->setInterval(200);
 }
 
 QGraphicsPDFViewer::~QGraphicsPDFViewer() { clearDocument(); }
@@ -517,6 +546,19 @@ void QGraphicsPDFViewer::setDocument(
             m_toolbar->updateControls(true, 0, getPageCount(), m_zoomFactor,
                                       m_rotation);
         }
+
+        // Initialize lazy loading
+        m_currentVisiblePages.clear();
+        if (m_isLazyLoadingEnabled) {
+            m_lazyLoadTimer->start();
+        } else {
+            // If lazy loading is disabled, render all pages
+            QList<int> allPages;
+            for (int i = 0; i < getPageCount(); ++i) {
+                allPages.append(i);
+            }
+            m_scene->setVisiblePages(allPages);
+        }
     } else {
         emit documentChanged(false);
 
@@ -536,7 +578,7 @@ void QGraphicsPDFViewer::clearDocument() {
 }
 
 void QGraphicsPDFViewer::goToPage(int pageNumber) {
-    if (!m_document || pageNumber < 0 || pageNumber >= getPageCount()) {
+    if (!m_document || pageNumber < 0 || pageNumber >= m_document->numPages()) {
         return;
     }
 
@@ -544,11 +586,13 @@ void QGraphicsPDFViewer::goToPage(int pageNumber) {
     centerOnPage(pageNumber);
     emit currentPageChanged(pageNumber);
 
-    // Update toolbar
     if (m_toolbar) {
-        m_toolbar->updateControls(true, pageNumber, getPageCount(),
-                                  m_zoomFactor, m_rotation);
+        m_toolbar->updateControls(m_document != nullptr, pageNumber,
+                                  getPageCount(), m_zoomFactor, m_rotation);
     }
+
+    // Trigger lazy load after page jump
+    m_lazyLoadTimer->start();
 }
 
 void QGraphicsPDFViewer::nextPage() {
@@ -664,6 +708,24 @@ void QGraphicsPDFViewer::setSmoothScrolling(bool enabled) {
     m_smoothScrollingEnabled = enabled;
 }
 
+void QGraphicsPDFViewer::setLazyLoadingEnabled(bool enabled) {
+    if (m_isLazyLoadingEnabled != enabled) {
+        m_isLazyLoadingEnabled = enabled;
+
+        if (enabled) {
+            // If enabling lazy loading, immediately update visible pages
+            m_lazyLoadTimer->start();
+        } else {
+            // If disabling lazy loading, render all pages
+            QList<int> allPages;
+            for (int i = 0; i < getPageCount(); ++i) {
+                allPages.append(i);
+            }
+            m_scene->setVisiblePages(allPages);
+        }
+    }
+}
+
 int QGraphicsPDFViewer::getPageCount() const {
     return m_document ? m_document->numPages() : 0;
 }
@@ -678,6 +740,9 @@ void QGraphicsPDFViewer::wheelEvent(QWheelEvent* event) {
             setZoom(m_zoomFactor / scaleFactor);
         }
         event->accept();
+
+        // Trigger lazy load after zoom
+        m_lazyLoadTimer->start();
     } else {
         // Normal scrolling - pass to graphics view
         QWheelEvent* newEvent = new QWheelEvent(
@@ -686,6 +751,9 @@ void QGraphicsPDFViewer::wheelEvent(QWheelEvent* event) {
             event->phase(), event->inverted());
         QCoreApplication::postEvent(m_graphicsView, newEvent);
         m_updateTimer->start();
+
+        // Trigger lazy load after scroll
+        m_lazyLoadTimer->start();
     }
 }
 
@@ -759,9 +827,9 @@ void QGraphicsPDFViewer::keyPressEvent(QKeyEvent* event) {
 void QGraphicsPDFViewer::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
 
-    // Update view if needed
-    if (m_viewMode == SinglePage) {
-        m_renderTimer->start();
+    if (m_document) {
+        // Trigger lazy load when resizing
+        m_lazyLoadTimer->start();
     }
 }
 
@@ -813,12 +881,66 @@ void QGraphicsPDFViewer::updateCurrentPage() {
     }
 }
 
-void QGraphicsPDFViewer::updateViewTransform() {
-    if (!m_scene)
-        return;
+QList<int> QGraphicsPDFViewer::getVisiblePageNumbers() const {
+    QList<int> visiblePages;
 
-    // Update scene layout
-    m_scene->updateLayout();
+    if (!m_document || m_scene->getPageCount() == 0) {
+        return visiblePages;
+    }
+
+    // Get viewport rect in scene coordinates
+    QRect viewportRect = m_graphicsView->viewport()->rect();
+    QRectF sceneRect = m_graphicsView->mapToScene(viewportRect).boundingRect();
+
+    // Expand the visible rect by a margin to include pages that are partially
+    // visible
+    qreal margin = 100.0;  // 100px margin
+    sceneRect.adjust(-margin, -margin, margin, margin);
+
+    // Check which pages are intersecting with the visible rect
+    for (int i = 0; i < m_scene->getPageCount(); ++i) {
+        QGraphicsPDFPageItem* pageItem = m_scene->getPageItem(i);
+        if (pageItem) {
+            QRectF pageRect = pageItem->sceneBoundingRect();
+            if (sceneRect.intersects(pageRect)) {
+                visiblePages.append(i);
+            }
+        }
+    }
+
+    return visiblePages;
+}
+
+void QGraphicsPDFViewer::updateVisiblePages() {
+    if (!m_isLazyLoadingEnabled || !m_document) {
+        return;
+    }
+
+    QList<int> visiblePages = getVisiblePageNumbers();
+
+    // If visible pages haven't changed, do nothing
+    if (m_currentVisiblePages == visiblePages) {
+        return;
+    }
+
+    m_currentVisiblePages = visiblePages;
+    m_scene->setVisiblePages(visiblePages);
+
+    // Log the number of visible and rendered pages for debugging
+    qDebug() << "Visible pages:" << visiblePages.size()
+             << "Rendered pages:" << m_scene->getRenderedPageCount()
+             << "Total pages:" << m_scene->getPageCount();
+}
+
+void QGraphicsPDFViewer::updateViewTransform() {
+    QTransform transform;
+    transform.translate(m_graphicsView->width() / 2,
+                        m_graphicsView->height() / 2);
+    transform.rotate(m_rotation);
+    transform.scale(m_zoomFactor, m_zoomFactor);
+    transform.translate(-m_graphicsView->width() / 2,
+                        -m_graphicsView->height() / 2);
+    m_graphicsView->setTransform(transform);
 }
 
 void QGraphicsPDFViewer::centerOnPage(int pageNumber) {
