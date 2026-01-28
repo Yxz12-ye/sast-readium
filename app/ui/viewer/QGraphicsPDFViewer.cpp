@@ -24,7 +24,8 @@ QGraphicsPDFPageItem::QGraphicsPDFPageItem(QGraphicsItem* parent)
       m_visibleInViewport(false),
       m_currentSearchResultIndex(-1),
       m_normalHighlightColor(255, 255, 0, 100),
-      m_currentHighlightColor(255, 165, 0, 150) {
+      m_currentHighlightColor(255, 165, 0, 150),
+      m_pageSize(0, 0) {
     setShapeMode(QGraphicsPixmapItem::BoundingRectShape);
     setTransformationMode(Qt::SmoothTransformation);
 
@@ -41,6 +42,16 @@ QGraphicsPDFPageItem::QGraphicsPDFPageItem(QGraphicsItem* parent)
                      [this]() { onRenderCompleted(); });
 }
 
+QRectF QGraphicsPDFPageItem::getPageBoundingRect() const {
+    if (m_page) {
+        // 使用 Poppler::Page 的尺寸计算实际边界
+        double width = m_page->pageSizeF().width() * m_scaleFactor;
+        double height = m_page->pageSizeF().height() * m_scaleFactor;
+        return QRectF(0, 0, width, height);
+    }
+    return QGraphicsPixmapItem::boundingRect();
+}
+
 void QGraphicsPDFPageItem::setPage(std::unique_ptr<Poppler::Page> page,
                                    double scaleFactor, int rotation) {
     m_page = std::move(page);
@@ -49,9 +60,14 @@ void QGraphicsPDFPageItem::setPage(std::unique_ptr<Poppler::Page> page,
 
     if (m_page) {
         m_pageNumber = m_page->index();
-        renderPageAsync();
+        m_pageSize = m_page->pageSizeF();  // 缓存页面原始尺寸
+        // 只有在可见时才渲染
+        if (m_visibleInViewport) {
+            renderPageAsync();
+        }
     } else {
         setPixmap(QPixmap());
+        m_pageSize = QSizeF(0, 0);
     }
 }
 
@@ -108,6 +124,8 @@ void QGraphicsPDFPageItem::setVisibleInViewport(bool visible) {
 
         // 如果页面进入视口且尚未渲染，则渲染页面
         if (visible && !isRendered() && m_page) {
+            qDebug() << "Page" << m_pageNumber
+                     << "entered viewport, rendering...";
             renderPageAsync();
         }
     }
@@ -206,7 +224,12 @@ void QGraphicsPDFPageItem::paint(QPainter* painter,
 }
 
 QRectF QGraphicsPDFPageItem::boundingRect() const {
-    return QGraphicsPixmapItem::boundingRect();
+    // 如果页面已渲染，返回 pixmap 的边界
+    if (isRendered()) {
+        return QGraphicsPixmapItem::boundingRect();
+    }
+    // 如果页面未渲染，返回计算出的边界
+    return getPageBoundingRect();
 }
 
 void QGraphicsPDFPageItem::drawSearchHighlights(QPainter* painter) {
@@ -436,6 +459,18 @@ QGraphicsPDFViewer::QGraphicsPDFViewer(QWidget* parent)
     connect(m_lazyLoadTimer, &QTimer::timeout, this,
             &QGraphicsPDFViewer::updateVisiblePages);
 
+    // Setup update timer
+    m_updateTimer = new QTimer(this);
+    m_updateTimer->setSingleShot(true);
+    m_updateTimer->setInterval(50);  // 50ms debounce delay
+    connect(m_updateTimer, &QTimer::timeout, this,
+            &QGraphicsPDFViewer::updateCurrentPage);
+
+    // Setup render timer
+    m_renderTimer = new QTimer(this);
+    m_renderTimer->setSingleShot(true);
+    m_renderTimer->setInterval(100);
+
     setupView();
     setupToolbar();
     setupConnections();
@@ -474,6 +509,12 @@ void QGraphicsPDFViewer::setupView() {
 
     // Set background
     m_graphicsView->setBackgroundBrush(QBrush(QColor(128, 128, 128)));
+
+    // Connect scroll bar signals to trigger lazy loading
+    connect(m_graphicsView->verticalScrollBar(), &QScrollBar::valueChanged,
+            this, [this]() { m_lazyLoadTimer->start(); });
+    connect(m_graphicsView->horizontalScrollBar(), &QScrollBar::valueChanged,
+            this, [this]() { m_lazyLoadTimer->start(); });
 }
 
 void QGraphicsPDFViewer::setupToolbar() {
@@ -892,9 +933,10 @@ QList<int> QGraphicsPDFViewer::getVisiblePageNumbers() const {
     QRect viewportRect = m_graphicsView->viewport()->rect();
     QRectF sceneRect = m_graphicsView->mapToScene(viewportRect).boundingRect();
 
-    // Expand the visible rect by a margin to include pages that are partially
-    // visible
-    qreal margin = 100.0;  // 100px margin
+    // Expand the visible rect by a larger margin to include pages that are
+    // partially visible and to pre-render pages just outside the viewport for
+    // smoother scrolling
+    qreal margin = 300.0;  // 300px margin (increased from 100px)
     sceneRect.adjust(-margin, -margin, margin, margin);
 
     // Check which pages are intersecting with the visible rect
@@ -902,6 +944,7 @@ QList<int> QGraphicsPDFViewer::getVisiblePageNumbers() const {
         QGraphicsPDFPageItem* pageItem = m_scene->getPageItem(i);
         if (pageItem) {
             QRectF pageRect = pageItem->sceneBoundingRect();
+
             if (sceneRect.intersects(pageRect)) {
                 visiblePages.append(i);
             }

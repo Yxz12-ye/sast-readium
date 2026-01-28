@@ -68,6 +68,7 @@ private slots:
 private:
     void renderPage();
     void drawSearchHighlights(QPainter* painter);
+    QRectF getPageBoundingRect() const;  // 获取页面的实际边界（无论是否已渲染）
 
     std::unique_ptr<Poppler::Page> m_page;
     double m_scaleFactor;
@@ -79,6 +80,9 @@ private:
 
     QFutureWatcher<QPixmap>* m_renderWatcher;
     QTimer* m_renderTimer;
+
+    // 页面尺寸缓存，用于在未渲染时提供正确的边界
+    QSizeF m_pageSize;
 
     // Search highlighting
     QList<QRectF> m_searchResults;
