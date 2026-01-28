@@ -52,6 +52,7 @@ target_sources(
     ui/viewer/PDFViewerEnhancements.cpp
     ui/viewer/PDFAnimations.cpp
     ui/viewer/QGraphicsPDFViewer.cpp
+    ui/viewer/QGraphicsPDFViewerToolbar.cpp
 
     # UI Widgets
     ui/widgets/DocumentTabWidget.cpp

@@ -380,7 +380,10 @@ void QGraphicsPDFScene::layoutPages() {
 
 // QGraphicsPDFViewer Implementation
 QGraphicsPDFViewer::QGraphicsPDFViewer(QWidget* parent)
-    : QGraphicsView(parent),
+    : QWidget(parent),
+      m_mainLayout(nullptr),
+      m_toolbar(nullptr),
+      m_graphicsView(nullptr),
       m_scene(nullptr),
       m_document(nullptr),
       m_viewMode(SinglePage),
@@ -394,6 +397,8 @@ QGraphicsPDFViewer::QGraphicsPDFViewer(QWidget* parent)
       m_isPanning(false),
       m_rubberBand(nullptr) {
     setupView();
+    setupToolbar();
+    setupConnections();
 
     // Setup timers
     m_updateTimer = new QTimer(this);
@@ -410,31 +415,80 @@ QGraphicsPDFViewer::QGraphicsPDFViewer(QWidget* parent)
 QGraphicsPDFViewer::~QGraphicsPDFViewer() { clearDocument(); }
 
 void QGraphicsPDFViewer::setupView() {
+    // Create main layout
+    m_mainLayout = new QVBoxLayout(this);
+    m_mainLayout->setContentsMargins(0, 0, 0, 0);
+    m_mainLayout->setSpacing(0);
+
+    // Create graphics view
+    m_graphicsView = new QGraphicsView(this);
+    m_mainLayout->addWidget(m_graphicsView);
+
     // Create scene
     m_scene = new QGraphicsPDFScene(this);
-    setScene(m_scene);
+    m_graphicsView->setScene(m_scene);
 
+    // Configure view
+    m_graphicsView->setDragMode(QGraphicsView::NoDrag);
+    m_graphicsView->setRenderHints(QPainter::Antialiasing |
+                                   QPainter::SmoothPixmapTransform);
+    m_graphicsView->setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
+    m_graphicsView->setOptimizationFlags(
+        QGraphicsView::DontSavePainterState |
+        QGraphicsView::DontAdjustForAntialiasing);
+
+    // Enable smooth scrolling
+    if (m_smoothScrollingEnabled) {
+        m_graphicsView->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        m_graphicsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    }
+
+    // Set background
+    m_graphicsView->setBackgroundBrush(QBrush(QColor(128, 128, 128)));
+}
+
+void QGraphicsPDFViewer::setupToolbar() {
+    m_toolbar = new QGraphicsPDFViewerToolbar(this);
+    m_mainLayout->insertWidget(0, m_toolbar);
+    m_toolbar->setViewer(this);
+}
+
+void QGraphicsPDFViewer::setupConnections() {
     // Connect scene signals
     connect(m_scene, &QGraphicsPDFScene::pageClicked, this,
             &QGraphicsPDFViewer::onScenePageClicked);
     connect(m_scene, &QGraphicsPDFScene::scaleChanged, this,
             &QGraphicsPDFViewer::onSceneScaleChanged);
 
-    // Configure view
-    setDragMode(QGraphicsView::NoDrag);
-    setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
-    setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
-    setOptimizationFlags(QGraphicsView::DontSavePainterState |
-                         QGraphicsView::DontAdjustForAntialiasing);
-
-    // Enable smooth scrolling
-    if (m_smoothScrollingEnabled) {
-        setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    }
-
-    // Set background
-    setBackgroundBrush(QBrush(QColor(128, 128, 128)));
+    // Connect toolbar signals
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::firstPageRequested, this,
+            &QGraphicsPDFViewer::onFirstPageRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::previousPageRequested, this,
+            &QGraphicsPDFViewer::onPreviousPageRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::nextPageRequested, this,
+            &QGraphicsPDFViewer::onNextPageRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::lastPageRequested, this,
+            &QGraphicsPDFViewer::onLastPageRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::pageNumberChanged, this,
+            &QGraphicsPDFViewer::onPageNumberChanged);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::zoomInRequested, this,
+            &QGraphicsPDFViewer::onZoomInRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::zoomOutRequested, this,
+            &QGraphicsPDFViewer::onZoomOutRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::zoomToFitRequested, this,
+            &QGraphicsPDFViewer::onZoomToFitRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::zoomToWidthRequested, this,
+            &QGraphicsPDFViewer::onZoomToWidthRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::zoomToHeightRequested, this,
+            &QGraphicsPDFViewer::onZoomToHeightRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::zoomPercentageChanged, this,
+            &QGraphicsPDFViewer::onZoomPercentageChanged);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::rotateLeftRequested, this,
+            &QGraphicsPDFViewer::onRotateLeftRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::rotateRightRequested, this,
+            &QGraphicsPDFViewer::onRotateRightRequested);
+    connect(m_toolbar, &QGraphicsPDFViewerToolbar::viewModeChanged, this,
+            &QGraphicsPDFViewer::onViewModeChanged);
 }
 
 void QGraphicsPDFViewer::setDocument(
@@ -457,8 +511,19 @@ void QGraphicsPDFViewer::setDocument(
 
         emit documentChanged(true);
         emit currentPageChanged(0);
+
+        // Update toolbar
+        if (m_toolbar) {
+            m_toolbar->updateControls(true, 0, getPageCount(), m_zoomFactor,
+                                      m_rotation);
+        }
     } else {
         emit documentChanged(false);
+
+        // Update toolbar
+        if (m_toolbar) {
+            m_toolbar->updateControls(false, 0, 0, 1.0, 0);
+        }
     }
 }
 
@@ -478,6 +543,12 @@ void QGraphicsPDFViewer::goToPage(int pageNumber) {
     m_currentPage = pageNumber;
     centerOnPage(pageNumber);
     emit currentPageChanged(pageNumber);
+
+    // Update toolbar
+    if (m_toolbar) {
+        m_toolbar->updateControls(true, pageNumber, getPageCount(),
+                                  m_zoomFactor, m_rotation);
+    }
 }
 
 void QGraphicsPDFViewer::nextPage() {
@@ -513,6 +584,12 @@ void QGraphicsPDFViewer::setZoom(double factor) {
         m_scene->setScaleFactor(newFactor);
         updateViewTransform();
         emit zoomChanged(newFactor);
+
+        // Update toolbar
+        if (m_toolbar) {
+            m_toolbar->updateControls(m_document != nullptr, m_currentPage,
+                                      getPageCount(), m_zoomFactor, m_rotation);
+        }
     }
 }
 
@@ -531,6 +608,12 @@ void QGraphicsPDFViewer::setRotation(int degrees) {
         m_scene->setRotation(newRotation);
         updateViewTransform();
         emit rotationChanged(newRotation);
+
+        // Update toolbar
+        if (m_toolbar) {
+            m_toolbar->updateControls(m_document != nullptr, m_currentPage,
+                                      getPageCount(), m_zoomFactor, m_rotation);
+        }
     }
 }
 
@@ -538,6 +621,11 @@ void QGraphicsPDFViewer::setViewMode(ViewMode mode) {
     if (m_viewMode != mode) {
         m_viewMode = mode;
         updateViewTransform();
+
+        // Update toolbar
+        if (m_toolbar) {
+            m_toolbar->setViewMode(static_cast<int>(mode));
+        }
     }
 }
 
@@ -552,7 +640,7 @@ void QGraphicsPDFViewer::setHighQualityRendering(bool enabled) {
                                       enabled);
         }
 
-        setRenderHints(
+        m_graphicsView->setRenderHints(
             enabled ? (QPainter::Antialiasing | QPainter::SmoothPixmapTransform)
                     : QPainter::RenderHints());
     }
@@ -591,75 +679,35 @@ void QGraphicsPDFViewer::wheelEvent(QWheelEvent* event) {
         }
         event->accept();
     } else {
-        // Normal scrolling
-        QGraphicsView::wheelEvent(event);
+        // Normal scrolling - pass to graphics view
+        QWheelEvent* newEvent = new QWheelEvent(
+            event->position(), event->globalPosition(), event->pixelDelta(),
+            event->angleDelta(), event->buttons(), event->modifiers(),
+            event->phase(), event->inverted());
+        QCoreApplication::postEvent(m_graphicsView, newEvent);
         m_updateTimer->start();
     }
 }
 
 void QGraphicsPDFViewer::mousePressEvent(QMouseEvent* event) {
-    if (event->button() == Qt::MiddleButton) {
-        // Start panning
-        m_isPanning = true;
-        m_lastPanPoint = event->pos();
-        setCursor(Qt::ClosedHandCursor);
-        event->accept();
-    } else if (event->button() == Qt::LeftButton &&
-               event->modifiers() & Qt::ControlModifier) {
-        // Start rubber band selection
-        m_rubberBandOrigin = event->pos();
-        if (!m_rubberBand) {
-            m_rubberBand = new QRubberBand(QRubberBand::Rectangle, this);
-        }
-        m_rubberBand->setGeometry(QRect(m_rubberBandOrigin, QSize()));
-        m_rubberBand->show();
-        event->accept();
-    } else {
-        QGraphicsView::mousePressEvent(event);
-    }
+    QMouseEvent* newEvent = new QMouseEvent(
+        event->type(), event->position(), event->globalPosition(),
+        event->button(), event->buttons(), event->modifiers());
+    QCoreApplication::postEvent(m_graphicsView, newEvent);
 }
 
 void QGraphicsPDFViewer::mouseMoveEvent(QMouseEvent* event) {
-    if (m_isPanning && (event->buttons() & Qt::MiddleButton)) {
-        // Pan the view
-        QPoint delta = event->pos() - m_lastPanPoint;
-        horizontalScrollBar()->setValue(horizontalScrollBar()->value() -
-                                        delta.x());
-        verticalScrollBar()->setValue(verticalScrollBar()->value() - delta.y());
-        m_lastPanPoint = event->pos();
-        event->accept();
-    } else if (m_rubberBand && m_rubberBand->isVisible()) {
-        // Update rubber band
-        m_rubberBand->setGeometry(
-            QRect(m_rubberBandOrigin, event->pos()).normalized());
-        event->accept();
-    } else {
-        QGraphicsView::mouseMoveEvent(event);
-    }
+    QMouseEvent* newEvent = new QMouseEvent(
+        event->type(), event->position(), event->globalPosition(),
+        event->button(), event->buttons(), event->modifiers());
+    QCoreApplication::postEvent(m_graphicsView, newEvent);
 }
 
 void QGraphicsPDFViewer::mouseReleaseEvent(QMouseEvent* event) {
-    if (event->button() == Qt::MiddleButton && m_isPanning) {
-        // End panning
-        m_isPanning = false;
-        setCursor(Qt::ArrowCursor);
-        event->accept();
-    } else if (m_rubberBand && m_rubberBand->isVisible()) {
-        // End rubber band selection
-        m_rubberBand->hide();
-
-        // Zoom to selected area
-        QRect selection = m_rubberBand->geometry();
-        if (selection.width() > 10 && selection.height() > 10) {
-            QRectF sceneRect = mapToScene(selection).boundingRect();
-            fitInView(sceneRect, Qt::KeepAspectRatio);
-            m_zoomFactor = transform().m11();
-            emit zoomChanged(m_zoomFactor);
-        }
-        event->accept();
-    } else {
-        QGraphicsView::mouseReleaseEvent(event);
-    }
+    QMouseEvent* newEvent = new QMouseEvent(
+        event->type(), event->position(), event->globalPosition(),
+        event->button(), event->buttons(), event->modifiers());
+    QCoreApplication::postEvent(m_graphicsView, newEvent);
 }
 
 void QGraphicsPDFViewer::keyPressEvent(QKeyEvent* event) {
@@ -700,13 +748,16 @@ void QGraphicsPDFViewer::keyPressEvent(QKeyEvent* event) {
             }
             break;
         default:
-            QGraphicsView::keyPressEvent(event);
+            QKeyEvent* newEvent = new QKeyEvent(
+                event->type(), event->key(), event->modifiers(), event->text(),
+                event->isAutoRepeat(), event->count());
+            QCoreApplication::postEvent(m_graphicsView, newEvent);
             break;
     }
 }
 
 void QGraphicsPDFViewer::resizeEvent(QResizeEvent* event) {
-    QGraphicsView::resizeEvent(event);
+    QWidget::resizeEvent(event);
 
     // Update view if needed
     if (m_viewMode == SinglePage) {
@@ -732,7 +783,9 @@ void QGraphicsPDFViewer::updateCurrentPage() {
         return;
 
     // Find the page that's most visible in the viewport
-    QRectF viewportRect = mapToScene(viewport()->rect()).boundingRect();
+    QRectF viewportRect =
+        m_graphicsView->mapToScene(m_graphicsView->viewport()->rect())
+            .boundingRect();
 
     int bestPage = m_currentPage;
     double bestOverlap = 0.0;
@@ -771,7 +824,7 @@ void QGraphicsPDFViewer::updateViewTransform() {
 void QGraphicsPDFViewer::centerOnPage(int pageNumber) {
     QGraphicsPDFPageItem* pageItem = m_scene->getPageItem(pageNumber);
     if (pageItem) {
-        centerOn(pageItem);
+        m_graphicsView->centerOn(pageItem);
     }
 }
 
@@ -781,8 +834,8 @@ void QGraphicsPDFViewer::fitToView() {
 
     QGraphicsPDFPageItem* pageItem = m_scene->getPageItem(m_currentPage);
     if (pageItem) {
-        fitInView(pageItem, Qt::KeepAspectRatio);
-        m_zoomFactor = transform().m11();
+        m_graphicsView->fitInView(pageItem, Qt::KeepAspectRatio);
+        m_zoomFactor = m_graphicsView->transform().m11();
         emit zoomChanged(m_zoomFactor);
     }
 }
@@ -794,7 +847,7 @@ void QGraphicsPDFViewer::fitToWidth() {
     QGraphicsPDFPageItem* pageItem = m_scene->getPageItem(m_currentPage);
     if (pageItem) {
         QRectF pageRect = pageItem->boundingRect();
-        QRectF viewRect = viewport()->rect();
+        QRectF viewRect = m_graphicsView->viewport()->rect();
 
         double scale = viewRect.width() / pageRect.width();
         setZoom(scale);
@@ -809,12 +862,47 @@ void QGraphicsPDFViewer::fitToHeight() {
     QGraphicsPDFPageItem* pageItem = m_scene->getPageItem(m_currentPage);
     if (pageItem) {
         QRectF pageRect = pageItem->boundingRect();
-        QRectF viewRect = viewport()->rect();
+        QRectF viewRect = m_graphicsView->viewport()->rect();
 
         double scale = viewRect.height() / pageRect.height();
         setZoom(scale);
         centerOnPage(m_currentPage);
     }
+}
+
+// Toolbar slots implementation
+void QGraphicsPDFViewer::onFirstPageRequested() { firstPage(); }
+
+void QGraphicsPDFViewer::onPreviousPageRequested() { previousPage(); }
+
+void QGraphicsPDFViewer::onNextPageRequested() { nextPage(); }
+
+void QGraphicsPDFViewer::onLastPageRequested() { lastPage(); }
+
+void QGraphicsPDFViewer::onPageNumberChanged(int pageNumber) {
+    goToPage(pageNumber);
+}
+
+void QGraphicsPDFViewer::onZoomInRequested() { zoomIn(); }
+
+void QGraphicsPDFViewer::onZoomOutRequested() { zoomOut(); }
+
+void QGraphicsPDFViewer::onZoomToFitRequested() { zoomToFit(); }
+
+void QGraphicsPDFViewer::onZoomToWidthRequested() { zoomToWidth(); }
+
+void QGraphicsPDFViewer::onZoomToHeightRequested() { zoomToHeight(); }
+
+void QGraphicsPDFViewer::onZoomPercentageChanged(int percentage) {
+    setZoom(percentage / 100.0);
+}
+
+void QGraphicsPDFViewer::onRotateLeftRequested() { rotateLeft(); }
+
+void QGraphicsPDFViewer::onRotateRightRequested() { rotateRight(); }
+
+void QGraphicsPDFViewer::onViewModeChanged(int mode) {
+    setViewMode(static_cast<ViewMode>(mode));
 }
 
 #endif  // ENABLE_QGRAPHICS_PDF_SUPPORT

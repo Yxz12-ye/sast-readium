@@ -13,8 +13,10 @@
 #include <QPixmap>
 #include <QRubberBand>
 #include <QTimer>
+#include <QVBoxLayout>
 #include <QWheelEvent>
 #include <memory>
+#include "QGraphicsPDFViewerToolbar.h"
 
 class QGraphicsPDFPageItem;
 class QGraphicsPDFScene;
@@ -133,7 +135,7 @@ private:
  * Enhanced PDF viewer using QGraphicsView
  * Provides smooth zooming, panning, and advanced interactions
  */
-class QGraphicsPDFViewer : public QGraphicsView {
+class QGraphicsPDFViewer : public QWidget {
     Q_OBJECT
 
 public:
@@ -191,6 +193,13 @@ public:
     int getPageCount() const;
     bool hasDocument() const { return m_document != nullptr; }
 
+    /**
+      * @brief Returns the toolbar widget
+      * @return Pointer to the
+     * toolbar widget
+      */
+    QWidget* getToolbar() const { return m_toolbar; }
+
 signals:
     void documentChanged(bool hasDocument);
     void currentPageChanged(int pageNumber);
@@ -211,8 +220,26 @@ private slots:
     void onSceneScaleChanged(double scale);
     void updateCurrentPage();
 
+    // Toolbar slots
+    void onFirstPageRequested();
+    void onPreviousPageRequested();
+    void onNextPageRequested();
+    void onLastPageRequested();
+    void onPageNumberChanged(int pageNumber);
+    void onZoomInRequested();
+    void onZoomOutRequested();
+    void onZoomToFitRequested();
+    void onZoomToWidthRequested();
+    void onZoomToHeightRequested();
+    void onZoomPercentageChanged(int percentage);
+    void onRotateLeftRequested();
+    void onRotateRightRequested();
+    void onViewModeChanged(int mode);
+
 private:
     void setupView();
+    void setupToolbar();
+    void setupConnections();
     void updateViewTransform();
     void updateVisiblePages();
     void centerOnPage(int pageNumber);
@@ -220,6 +247,9 @@ private:
     void fitToWidth();
     void fitToHeight();
 
+    QVBoxLayout* m_mainLayout;
+    QGraphicsPDFViewerToolbar* m_toolbar;
+    QGraphicsView* m_graphicsView;
     QGraphicsPDFScene* m_scene;
     std::shared_ptr<Poppler::Document> m_document;
 
